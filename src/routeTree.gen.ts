@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScenarioRouteImport } from './routes/scenario'
+import { Route as ProspectingRouteImport } from './routes/prospecting'
 import { Route as IndexRouteImport } from './routes/index'
 
 const ScenarioRoute = ScenarioRouteImport.update({
   id: '/scenario',
   path: '/scenario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProspectingRoute = ProspectingRouteImport.update({
+  id: '/prospecting',
+  path: '/prospecting',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,27 +31,31 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/scenario'
+  fullPaths: '/' | '/prospecting' | '/scenario'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/scenario'
-  id: '__root__' | '/' | '/scenario'
+  to: '/' | '/prospecting' | '/scenario'
+  id: '__root__' | '/' | '/prospecting' | '/scenario'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ProspectingRoute: typeof ProspectingRoute
   ScenarioRoute: typeof ScenarioRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/scenario'
       fullPath: '/scenario'
       preLoaderRoute: typeof ScenarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prospecting': {
+      id: '/prospecting'
+      path: '/prospecting'
+      fullPath: '/prospecting'
+      preLoaderRoute: typeof ProspectingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ProspectingRoute: ProspectingRoute,
   ScenarioRoute: ScenarioRoute,
 }
 export const routeTree = rootRouteImport
