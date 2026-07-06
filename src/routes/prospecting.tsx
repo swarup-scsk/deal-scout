@@ -221,8 +221,7 @@ function ProspectingScreen() {
               <TableHead>Headcount</TableHead>
               <TableHead>Business line</TableHead>
               <TableHead>Portfolio</TableHead>
-              <TableHead>Gas</TableHead>
-              <TableHead>Power</TableHead>
+              <TableHead>Gas &amp; Power Markets</TableHead>
               <TableHead className="text-right">Volume</TableHead>
               <TableHead className="min-w-48">AI Insight</TableHead>
               <TableHead className="w-40">Fit score</TableHead>
@@ -260,11 +259,15 @@ function ProspectingScreen() {
                 </TableCell>
                 <TableCell>{cp.headcount}</TableCell>
                 <TableCell className="whitespace-nowrap">
-                  {cp.businessLine}
+                  <div className="text-foreground">{cp.businessLineType}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {cp.businessLine}
+                  </div>
                 </TableCell>
                 <TableCell>{cp.portfolioSize}</TableCell>
-                <TableCell>{cp.gasMarket}</TableCell>
-                <TableCell>{cp.powerMarket}</TableCell>
+                <TableCell className="whitespace-nowrap text-sm">
+                  {cp.markets}
+                </TableCell>
                 <TableCell className="whitespace-nowrap text-right">
                   {cp.annualVolume.toLocaleString()} GWh
                 </TableCell>

@@ -5,6 +5,14 @@ export type CriteriaKey =
   | "complexity"
   | "dataAvailability";
 
+export type BusinessLineType =
+  | "Asset Owner"
+  | "Trader"
+  | "Energy Supplier"
+  | "Large Consumer"
+  | "Optimizer/Aggregator"
+  | "Service Provider";
+
 export const CRITERIA: { key: CriteriaKey; label: string }[] = [
   { key: "strategicFit", label: "Strategic fit" },
   { key: "profitability", label: "Profitability potential" },
@@ -29,6 +37,8 @@ export interface Counterparty {
   revenueEbitda: string;
   headcount: string;
   businessLine: string;
+  businessLineType: BusinessLineType;
+  markets: string;
   portfolioSize: string;
   gasMarket: string;
   powerMarket: string;
@@ -151,6 +161,8 @@ export const counterparties: Counterparty[] = [
     revenueEbitda: "€2.4bn / €310m",
     headcount: "1,200",
     businessLine: "Gas supply & trading",
+    businessLineType: "Energy Supplier",
+    markets: "NL, DE (TTF, high-pressure grid)",
     portfolioSize: "3,200 GWh",
     gasMarket: "Active",
     powerMarket: "Limited",
@@ -191,6 +203,8 @@ export const counterparties: Counterparty[] = [
     revenueEbitda: "€1.1bn / €140m",
     headcount: "640",
     businessLine: "Industrial energy supply",
+    businessLineType: "Optimizer/Aggregator",
+    markets: "BE, NL (TTF, ZTP)",
     portfolioSize: "1,800 GWh",
     gasMarket: "Active",
     powerMarket: "Active",
@@ -231,6 +245,8 @@ export const counterparties: Counterparty[] = [
     revenueEbitda: "€780m / €72m",
     headcount: "410",
     businessLine: "Regional utility",
+    businessLineType: "Energy Supplier",
+    markets: "NL (TTF, regional distribution)",
     portfolioSize: "1,100 GWh",
     gasMarket: "Active",
     powerMarket: "Limited",
@@ -271,6 +287,8 @@ export const counterparties: Counterparty[] = [
     revenueEbitda: "€1.6bn / €205m",
     headcount: "890",
     businessLine: "Power generation",
+    businessLineType: "Asset Owner",
+    markets: "BE (power, CCGT dispatch)",
     portfolioSize: "2,400 GWh",
     gasMarket: "Limited",
     powerMarket: "Active",
@@ -311,6 +329,8 @@ export const counterparties: Counterparty[] = [
     revenueEbitda: "€430m / €38m",
     headcount: "220",
     businessLine: "SME gas retailer",
+    businessLineType: "Energy Supplier",
+    markets: "NL (TTF retail)",
     portfolioSize: "600 GWh",
     gasMarket: "Active",
     powerMarket: "None",
@@ -351,6 +371,8 @@ export const counterparties: Counterparty[] = [
     revenueEbitda: "€900m / €95m",
     headcount: "500",
     businessLine: "Merchant trading",
+    businessLineType: "Trader",
+    markets: "BE, NL (TTF, ZTP)",
     portfolioSize: "1,500 GWh",
     gasMarket: "Active",
     powerMarket: "Active",
