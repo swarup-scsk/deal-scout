@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ScenarioRouteImport } from './routes/scenario'
 import { Route as ProspectingRouteImport } from './routes/prospecting'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as QualificationIdRouteImport } from './routes/qualification.$id'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScenarioRoute = ScenarioRouteImport.update({
   id: '/scenario',
   path: '/scenario',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRoutesById {
@@ -52,25 +60,45 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/prospecting' | '/scenario' | '/qualification/$id'
+  fullPaths:
+    | '/'
+    | '/prospecting'
+    | '/scenario'
+    | '/sitemap.xml'
+    | '/qualification/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/prospecting' | '/scenario' | '/qualification/$id'
-  id: '__root__' | '/' | '/prospecting' | '/scenario' | '/qualification/$id'
+  to: '/' | '/prospecting' | '/scenario' | '/sitemap.xml' | '/qualification/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/prospecting'
+    | '/scenario'
+    | '/sitemap.xml'
+    | '/qualification/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProspectingRoute: typeof ProspectingRoute
   ScenarioRoute: typeof ScenarioRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   QualificationIdRoute: typeof QualificationIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scenario': {
       id: '/scenario'
       path: '/scenario'
@@ -106,8 +134,19 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProspectingRoute: ProspectingRoute,
   ScenarioRoute: ScenarioRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   QualificationIdRoute: QualificationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
