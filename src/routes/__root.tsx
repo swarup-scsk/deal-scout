@@ -84,9 +84,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "Enterprise origination scouting tool for energy trading teams — scenario selection, AI-assisted prospecting and counterparty qualification." },
       { name: "author", content: "SEE" },
       { property: "og:title", content: "SEE Origination Scout" },
-      { property: "og:description", content: "Scenario selection, AI-assisted prospecting and counterparty qualification for energy origination teams." },
+      { property: "og:description", content: "Enterprise origination scouting tool for energy trading teams — scenario selection, AI-assisted prospecting and counterparty qualification." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "SEE Origination Scout" },
+      { name: "twitter:description", content: "Enterprise origination scouting tool for energy trading teams — scenario selection, AI-assisted prospecting and counterparty qualification." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6781c3e5-0c11-47f5-9b68-e2a4fa49d1b1/id-preview-ca36d469--86ab1d7d-55d2-4aa4-b046-6d8540f82cfd.lovable.app-1783346496518.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6781c3e5-0c11-47f5-9b68-e2a4fa49d1b1/id-preview-ca36d469--86ab1d7d-55d2-4aa4-b046-6d8540f82cfd.lovable.app-1783346496518.png" },
     ],
     links: [
       {
