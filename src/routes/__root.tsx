@@ -80,14 +80,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "SEE Origination Scout" },
+      { name: "description", content: "Enterprise origination scouting tool for energy trading teams — scenario selection, AI-assisted prospecting and counterparty qualification." },
+      { name: "author", content: "SEE" },
+      { property: "og:title", content: "SEE Origination Scout" },
+      { property: "og:description", content: "Scenario selection, AI-assisted prospecting and counterparty qualification for energy origination teams." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
