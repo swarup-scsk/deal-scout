@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ScenarioRouteImport } from './routes/scenario'
 import { Route as ProspectingRouteImport } from './routes/prospecting'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as QualificationIdRouteImport } from './routes/qualification.$id'
 
 const ScenarioRoute = ScenarioRouteImport.update({
   id: '/scenario',
@@ -28,35 +29,44 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QualificationIdRoute = QualificationIdRouteImport.update({
+  id: '/qualification/$id',
+  path: '/qualification/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/prospecting' | '/scenario'
+  fullPaths: '/' | '/prospecting' | '/scenario' | '/qualification/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/prospecting' | '/scenario'
-  id: '__root__' | '/' | '/prospecting' | '/scenario'
+  to: '/' | '/prospecting' | '/scenario' | '/qualification/$id'
+  id: '__root__' | '/' | '/prospecting' | '/scenario' | '/qualification/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProspectingRoute: typeof ProspectingRoute
   ScenarioRoute: typeof ScenarioRoute
+  QualificationIdRoute: typeof QualificationIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/qualification/$id': {
+      id: '/qualification/$id'
+      path: '/qualification/$id'
+      fullPath: '/qualification/$id'
+      preLoaderRoute: typeof QualificationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProspectingRoute: ProspectingRoute,
   ScenarioRoute: ScenarioRoute,
+  QualificationIdRoute: QualificationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
