@@ -9,38 +9,110 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ScenarioRouteImport } from './routes/scenario'
+import { Route as ProspectingRouteImport } from './routes/prospecting'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as QualificationIdRouteImport } from './routes/qualification.$id'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScenarioRoute = ScenarioRouteImport.update({
+  id: '/scenario',
+  path: '/scenario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProspectingRoute = ProspectingRouteImport.update({
+  id: '/prospecting',
+  path: '/prospecting',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QualificationIdRoute = QualificationIdRouteImport.update({
+  id: '/qualification/$id',
+  path: '/qualification/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/prospecting': typeof ProspectingRoute
+  '/scenario': typeof ScenarioRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/prospecting': typeof ProspectingRoute
+  '/scenario': typeof ScenarioRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/prospecting': typeof ProspectingRoute
+  '/scenario': typeof ScenarioRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/qualification/$id': typeof QualificationIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/prospecting'
+    | '/scenario'
+    | '/sitemap.xml'
+    | '/qualification/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/prospecting' | '/scenario' | '/sitemap.xml' | '/qualification/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/prospecting'
+    | '/scenario'
+    | '/sitemap.xml'
+    | '/qualification/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ProspectingRoute: typeof ProspectingRoute
+  ScenarioRoute: typeof ScenarioRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  QualificationIdRoute: typeof QualificationIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scenario': {
+      id: '/scenario'
+      path: '/scenario'
+      fullPath: '/scenario'
+      preLoaderRoute: typeof ScenarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prospecting': {
+      id: '/prospecting'
+      path: '/prospecting'
+      fullPath: '/prospecting'
+      preLoaderRoute: typeof ProspectingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +120,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/qualification/$id': {
+      id: '/qualification/$id'
+      path: '/qualification/$id'
+      fullPath: '/qualification/$id'
+      preLoaderRoute: typeof QualificationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ProspectingRoute: ProspectingRoute,
+  ScenarioRoute: ScenarioRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  QualificationIdRoute: QualificationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
