@@ -41,6 +41,9 @@ import { fitBarClass, fitColorClass, fitScore } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/prospecting")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    scenario: typeof search.scenario === "string" ? search.scenario : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "AI-Assisted Prospecting — SEE Origination Scout" },
