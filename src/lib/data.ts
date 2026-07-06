@@ -88,6 +88,26 @@ export const defaultConfig: Config = {
   scope: { commodity: "Gas", region: "Northwest Europe", hub: "TTF" },
 };
 
+// The configurable part of a scenario. Scope stays global; each scenario can
+// override weights, thresholds and rules.
+export interface ScenarioConfig {
+  weights: Record<CriteriaKey, number>;
+  thresholds: { green: number; amber: number; reject: number };
+  rules: { targetVolume: number; fitHigh: number; fitMid: number; returnGate: number };
+}
+
+// A scenario inherits the global config and applies its own overrides on top.
+export function inheritConfig(
+  global: Config,
+  override?: Partial<ScenarioConfig>,
+): ScenarioConfig {
+  return {
+    weights: { ...global.weights, ...(override?.weights ?? {}) },
+    thresholds: { ...global.thresholds, ...(override?.thresholds ?? {}) },
+    rules: { ...global.rules, ...(override?.rules ?? {}) },
+  };
+}
+
 export const scenarios: Scenario[] = [
   {
     id: "gas-supply-storage",
