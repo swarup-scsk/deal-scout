@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowUp,
   ChevronDown,
+  Download,
   Filter,
   ListChecks,
   RefreshCw,
@@ -32,12 +33,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { fitBarClass, fitColorClass, fitScore } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
@@ -66,9 +66,10 @@ function ProspectingScreen() {
   const [country, setCountry] = useState("all");
   const [sortKey, setSortKey] = useState("fit");
   const [sortDesc, setSortDesc] = useState(true);
-  const [advOpen, setAdvOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [acrossScenarios, setAcrossScenarios] = useState(false);
+  const [dl, setDl] = useState("");
   const [adv, setAdv] = useState({
     businessLineType: "all",
     market: "",
@@ -78,7 +79,6 @@ function ProspectingScreen() {
 
   const selectedScenario = scenarios.find((s) => s.id === selectedScenarioId);
 
-  // Best-fit scenario per counterparty, treating each scenario's criteria as weights.
   const acrossInfo: Record<string, { title: string; score: number }> = {};
   for (const cp of rankedCounterparties) {
     let bestTitle = "-";
@@ -139,6 +139,7 @@ function ProspectingScreen() {
       : []),
     { key: "fit", label: "Fit", get: (c) => c.fit, align: "right" as const },
   ];
+  const restCols = columns.filter((c) => c.key !== "company");
 
   const getter = columns.find((c) => c.key === sortKey)?.get ?? ((c: Row) => c.fit);
   rows = [...rows].sort((a, b) => {
@@ -157,6 +158,32 @@ function ProspectingScreen() {
       setSortKey(key);
       setSortDesc(true);
     }
+  };
+
+  const mockDownload = (kind: string) => {
+    setDl(`Preparing ${kind} (mock)…`);
+    setTimeout(() => setDl(""), 2500);
+  };
+
+  const headCell = (col: (typeof columns)[number]) => {
+    const active = sortKey === col.key;
+    return (
+      <TableHead
+        key={col.key}
+        className={`cursor-pointer select-none whitespace-nowrap ${col.align === "right" ? "text-right" : ""}`}
+        onClick={() => sortBy(col.key)}
+      >
+        <span className="inline-flex items-center gap-1">
+          {col.label}
+          {active &&
+            (sortDesc ? (
+              <ArrowDown className="h-3 w-3" />
+            ) : (
+              <ArrowUp className="h-3 w-3" />
+            ))}
+        </span>
+      </TableHead>
+    );
   };
 
   const renderCell = (key: string, cp: Row) => {
@@ -181,13 +208,19 @@ function ProspectingScreen() {
         );
       case "legalEntityName":
         return (
-          <span className="block max-w-[130px] truncate text-muted-foreground" title={cp.legalEntityName}>
+          <span
+            className="block max-w-[130px] truncate text-muted-foreground"
+            title={cp.legalEntityName}
+          >
             {cp.legalEntityName}
           </span>
         );
       case "lei":
         return (
-          <span className="block max-w-[120px] truncate font-mono text-[11px] text-muted-foreground" title={cp.lei}>
+          <span
+            className="block max-w-[120px] truncate font-mono text-[11px] text-muted-foreground"
+            title={cp.lei}
+          >
             {cp.lei}
           </span>
         );
@@ -195,7 +228,9 @@ function ProspectingScreen() {
         return (
           <div>
             <div className="text-foreground">{cp.businessLineType}</div>
-            <div className="text-[11px] text-muted-foreground">{cp.businessLine}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {cp.businessLine}
+            </div>
           </div>
         );
       case "markets":
@@ -216,7 +251,7 @@ function ProspectingScreen() {
         return <span>{acrossInfo[cp.id].title}</span>;
       case "fit":
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <div className="h-1.5 w-10 overflow-hidden rounded-full bg-muted">
               <div
                 className={`h-full ${fitBarClass(cp.fit, config.thresholds)}`}
@@ -231,7 +266,9 @@ function ProspectingScreen() {
           </div>
         );
       default:
-        return <span className="whitespace-nowrap">{String(cp[key as keyof Row])}</span>;
+        return (
+          <span className="whitespace-nowrap">{String(cp[key as keyof Row])}</span>
+        );
     }
   };
 
@@ -255,8 +292,8 @@ function ProspectingScreen() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <RefreshCw className="h-4 w-4" />
           <span>
-            <span className="font-medium text-foreground">Auto search</span>{" "}
-            runs on a schedule. Last run today 06:00 CET.
+            <span className="font-medium text-foreground">Auto search</span> runs
+            on a schedule. Last run today 06:00 CET.
           </span>
         </div>
         <Button size="sm">Re-run market scan</Button>
@@ -277,7 +314,7 @@ function ProspectingScreen() {
           />
         </button>
         {customOpen && (
-          <div className="grid gap-3 border-t border-border px-4 py-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <div className="grid gap-3 border-t border-border px-4 py-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs">Country</Label>
               <Select value={country} onValueChange={setCountry}>
@@ -295,9 +332,6 @@ function ProspectingScreen() {
               <Label className="text-xs">Location</Label>
               <Input placeholder="e.g. Rotterdam" />
             </div>
-            <Button variant="outline" size="sm" onClick={() => setAdvOpen(true)}>
-              Advanced Search
-            </Button>
           </div>
         )}
       </div>
@@ -343,82 +377,55 @@ function ProspectingScreen() {
             <SelectItem value="Belgium">Belgium</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" onClick={() => setAdvOpen(true)}>
-          <SlidersHorizontal className="mr-2 h-4 w-4" /> Advanced Search
+        <Button
+          variant={moreOpen ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setMoreOpen((v) => !v)}
+        >
+          <SlidersHorizontal className="mr-2 h-4 w-4" /> More filters
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" /> Download
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => mockDownload("table-only export")}>
+              Table only
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => mockDownload("detailed view export")}>
+              Detailed view
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {dl && <span className="text-xs text-muted-foreground">{dl}</span>}
         <Badge variant="secondary" className="ml-auto">
           {rows.length} counterparties
         </Badge>
       </div>
 
-      {/* Results table: compact, sortable headers */}
-      <Card className="overflow-x-auto p-0">
-        <Table className="w-full text-xs [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2 [&_td]:align-top">
-          <TableHeader>
-            <TableRow>
-              {columns.map((col) => {
-                const active = sortKey === col.key;
-                return (
-                  <TableHead
-                    key={col.key}
-                    className={`cursor-pointer select-none whitespace-nowrap ${col.align === "right" ? "text-right" : ""}`}
-                    onClick={() => sortBy(col.key)}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      {col.label}
-                      {active &&
-                        (sortDesc ? (
-                          <ArrowDown className="h-3 w-3" />
-                        ) : (
-                          <ArrowUp className="h-3 w-3" />
-                        ))}
-                    </span>
-                  </TableHead>
-                );
-              })}
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((cp) => (
-              <TableRow key={cp.id}>
-                {columns.map((col) => (
-                  <TableCell
-                    key={col.key}
-                    className={col.align === "right" ? "text-right" : ""}
-                  >
-                    {renderCell(col.key, cp)}
-                  </TableCell>
-                ))}
-                <TableCell className="text-right">
-                  {cp.rejected ? (
-                    <Badge variant="destructive">Rejected</Badge>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        navigate({
-                          to: "/qualification/$id",
-                          params: { id: cp.id },
-                        })
-                      }
-                    >
-                      Deep Dive
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
-
-      <Dialog open={advOpen} onOpenChange={setAdvOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Advanced Search</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
+      {/* Inline advanced filters (no popup) */}
+      {moreOpen && (
+        <Card className="p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">More filters</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setAdv({
+                  businessLineType: "all",
+                  market: "",
+                  minVolume: 0,
+                  minFit: 0,
+                })
+              }
+            >
+              Reset
+            </Button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Business line</Label>
               <Select
@@ -448,55 +455,79 @@ function ProspectingScreen() {
             <div className="space-y-1.5">
               <Label className="text-xs">Market contains</Label>
               <Input
-                placeholder="e.g. high-pressure grid, ZTP, France"
+                placeholder="high-pressure grid, ZTP…"
                 value={adv.market}
                 onChange={(e) => setAdv((a) => ({ ...a, market: e.target.value }))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Min volume (GWh/yr)</Label>
-                <Input
-                  type="number"
-                  value={adv.minVolume || ""}
-                  onChange={(e) =>
-                    setAdv((a) => ({
-                      ...a,
-                      minVolume: Number(e.target.value) || 0,
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Min fit score</Label>
-                <Input
-                  type="number"
-                  value={adv.minFit || ""}
-                  onChange={(e) =>
-                    setAdv((a) => ({ ...a, minFit: Number(e.target.value) || 0 }))
-                  }
-                />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Min volume (GWh/yr)</Label>
+              <Input
+                type="number"
+                value={adv.minVolume || ""}
+                onChange={(e) =>
+                  setAdv((a) => ({ ...a, minVolume: Number(e.target.value) || 0 }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Min fit score</Label>
+              <Input
+                type="number"
+                value={adv.minFit || ""}
+                onChange={(e) =>
+                  setAdv((a) => ({ ...a, minFit: Number(e.target.value) || 0 }))
+                }
+              />
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setAdv({
-                  businessLineType: "all",
-                  market: "",
-                  minVolume: 0,
-                  minFit: 0,
-                })
-              }
-            >
-              Reset
-            </Button>
-            <Button onClick={() => setAdvOpen(false)}>Apply</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </Card>
+      )}
+
+      {/* Results table: CTA in the second column, compact, sortable headers */}
+      <Card className="overflow-x-auto p-0">
+        <Table className="w-full text-xs [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2 [&_td]:align-top">
+          <TableHeader>
+            <TableRow>
+              {headCell(columns[0])}
+              <TableHead>Action</TableHead>
+              {restCols.map((col) => headCell(col))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((cp) => (
+              <TableRow key={cp.id}>
+                <TableCell>{renderCell("company", cp)}</TableCell>
+                <TableCell>
+                  {cp.rejected ? (
+                    <Badge variant="destructive">Rejected</Badge>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        navigate({
+                          to: "/qualification/$id",
+                          params: { id: cp.id },
+                        })
+                      }
+                    >
+                      Deep Dive
+                    </Button>
+                  )}
+                </TableCell>
+                {restCols.map((col) => (
+                  <TableCell
+                    key={col.key}
+                    className={col.align === "right" ? "text-right" : ""}
+                  >
+                    {renderCell(col.key, cp)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }
