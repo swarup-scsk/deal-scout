@@ -36,6 +36,7 @@ interface StoreValue {
   scenarios: Scenario[];
   addScenario: (title: string) => string;
   renameScenario: (id: string, title: string) => void;
+  deleteScenario: (id: string) => void;
   counterparties: Counterparty[];
   rankedCounterparties: (Counterparty & {
     fit: number;
@@ -146,6 +147,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
   const renameScenario = (id: string, title: string) =>
     setScenarioList((l) => l.map((s) => (s.id === id ? { ...s, title } : s)));
+  const deleteScenario = (id: string) => {
+    setScenarioList((l) => l.filter((s) => s.id !== id));
+    clearScenarioOverride(id);
+  };
 
   const currentSnap = JSON.stringify({ config, scenarioOverrides, scenarioList });
   const dirty = hydrated && currentSnap !== savedSnap;
@@ -168,6 +173,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     scenarios: scenarioList,
     addScenario,
     renameScenario,
+    deleteScenario,
     counterparties: seedCounterparties,
     rankedCounterparties,
     decisions,

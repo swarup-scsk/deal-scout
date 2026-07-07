@@ -6,7 +6,18 @@ import {
   ChevronRight,
   Plus,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -129,6 +140,7 @@ function ConfigureScenarios() {
     scenarios,
     addScenario,
     renameScenario,
+    deleteScenario,
     setScenarioOverride,
     clearScenarioOverride,
     resolvedScenarioConfig,
@@ -139,6 +151,7 @@ function ConfigureScenarios() {
   const navigate = useNavigate();
   const [globalOpen, setGlobalOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(scenarios[0]?.id ?? null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const globalCfg: ScenarioConfig = {
     weights: config.weights,
@@ -374,13 +387,23 @@ function ConfigureScenarios() {
                     />
                   </div>
                   <div className="flex items-center justify-between border-t border-border pt-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => clearScenarioOverride(s.id)}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" /> Reset to defaults
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => clearScenarioOverride(s.id)}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" /> Reset to defaults
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteId(s.id)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </Button>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={saveAll}>
                         Save
@@ -396,6 +419,35 @@ function ConfigureScenarios() {
           );
         })}
       </div>
+
+      <AlertDialog
+        open={deleteId !== null}
+        onOpenChange={(o) => !o && setDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete scenario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the scenario and its saved configuration. Save all to
+              persist the change. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteId) {
+                  deleteScenario(deleteId);
+                  if (openId === deleteId) setOpenId(null);
+                }
+                setDeleteId(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
