@@ -361,98 +361,60 @@ function UniverseScreen() {
             </Button>
           </div>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate({ to: "/scenario" })}
+        >
+          <Settings2 className="mr-2 h-4 w-4" /> Configure
+        </Button>
+      </div>
+
+      {/* Module 1: Search */}
+      <Card className="space-y-3 p-4">
+        <div className="text-sm font-semibold text-foreground">Search</div>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={scenarioId} onValueChange={chooseScenario}>
-            <SelectTrigger className="w-56">
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
-              <SelectValue />
+          <div className="relative">
+            <Filter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="w-64 pl-8"
+              placeholder="Search counterparties, or type a name…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </div>
+          <Select value={country} onValueChange={setCountry}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Country" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Universe</SelectItem>
-              {scenarios.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.title}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">All countries</SelectItem>
+              <SelectItem value="Netherlands">Netherlands</SelectItem>
+              <SelectItem value="Belgium">Belgium</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add counterparty
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" /> Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => mockDownload("table-only export")}>
-                Table only
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => mockDownload("detailed view export")}>
-                Detailed view
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
           <Button
-            variant="ghost"
+            variant={moreOpen ? "secondary" : "outline"}
             size="sm"
-            onClick={() => navigate({ to: "/scenario" })}
+            onClick={() => setMoreOpen((v) => !v)}
           >
-            <Settings2 className="mr-2 h-4 w-4" /> Configure
+            <SlidersHorizontal className="mr-2 h-4 w-4" /> More filters
           </Button>
-        </div>
-      </div>
-
-      {/* Search and filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Filter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            className="w-64 pl-8"
-            placeholder="Search counterparties, or add a name…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-        </div>
-        <Select value={country} onValueChange={setCountry}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Country" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All countries</SelectItem>
-            <SelectItem value="Netherlands">Netherlands</SelectItem>
-            <SelectItem value="Belgium">Belgium</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          variant={moreOpen ? "secondary" : "outline"}
-          size="sm"
-          onClick={() => setMoreOpen((v) => !v)}
-        >
-          <SlidersHorizontal className="mr-2 h-4 w-4" /> More filters
-        </Button>
-        {dl && <span className="text-xs text-muted-foreground">{dl}</span>}
-        <Badge variant="secondary" className="ml-auto">
-          {rows.length} counterparties
-        </Badge>
-      </div>
-
-      {moreOpen && (
-        <Card className="p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">More filters</span>
+          {filter.trim() && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={() =>
-                setAdv({ businessLineType: "all", market: "", minVolume: 0, minFit: 0 })
-              }
+              onClick={() => {
+                setForm((f) => ({ ...f, company: filter.trim() }));
+                setAddOpen(true);
+              }}
             >
-              Reset
+              <Plus className="mr-2 h-4 w-4" /> Add &ldquo;{filter.trim()}&rdquo;
             </Button>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-4">
+          )}
+        </div>
+        {moreOpen && (
+          <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Business line</Label>
               <Select
@@ -501,49 +463,100 @@ function UniverseScreen() {
                 }
               />
             </div>
+            <div className="flex justify-end sm:col-span-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setAdv({ businessLineType: "all", market: "", minVolume: 0, minFit: 0 })
+                }
+              >
+                Reset filters
+              </Button>
+            </div>
           </div>
-        </Card>
-      )}
+        )}
+      </Card>
 
-      {/* Universe table */}
-      <Card className="overflow-x-auto p-0">
-        <Table className="w-full text-xs [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2 [&_td]:align-top">
-          <TableHeader>
-            <TableRow>
-              {headCell(columns[0])}
-              <TableHead>Action</TableHead>
-              {restCols.map((col) => headCell(col))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((cp) => (
-              <TableRow key={cp.id}>
-                <TableCell>{renderCell("company", cp)}</TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      navigate({
-                        to: "/qualification/$id",
-                        params: { id: cp.id },
-                      })
-                    }
-                  >
-                    Deep dive
-                  </Button>
-                </TableCell>
-                {restCols.map((col) => (
-                  <TableCell
-                    key={col.key}
-                    className={col.align === "right" ? "text-right" : ""}
-                  >
-                    {renderCell(col.key, cp)}
-                  </TableCell>
-                ))}
+      {/* Module 2: Results */}
+      <Card className="p-0">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+          <Select value={scenarioId} onValueChange={chooseScenario}>
+            <SelectTrigger className="w-56">
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Universe</SelectItem>
+              {scenarios.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Badge variant="secondary">{rows.length} counterparties</Badge>
+          {dl && <span className="text-xs text-muted-foreground">{dl}</span>}
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Add counterparty
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="mr-2 h-4 w-4" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => mockDownload("table-only export")}>
+                  Table only
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => mockDownload("detailed view export")}>
+                  Detailed view
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <Table className="w-full text-xs [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2 [&_td]:align-top">
+            <TableHeader>
+              <TableRow>
+                {headCell(columns[0])}
+                <TableHead>Action</TableHead>
+                {restCols.map((col) => headCell(col))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {rows.map((cp) => (
+                <TableRow key={cp.id}>
+                  <TableCell>{renderCell("company", cp)}</TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        navigate({
+                          to: "/qualification/$id",
+                          params: { id: cp.id },
+                        })
+                      }
+                    >
+                      Deep dive
+                    </Button>
+                  </TableCell>
+                  {restCols.map((col) => (
+                    <TableCell
+                      key={col.key}
+                      className={col.align === "right" ? "text-right" : ""}
+                    >
+                      {renderCell(col.key, cp)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
 
       <p className="text-xs text-muted-foreground">
