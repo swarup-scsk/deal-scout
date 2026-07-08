@@ -21,11 +21,29 @@ export const CRITERIA: { key: CriteriaKey; label: string }[] = [
   { key: "dataAvailability", label: "Data availability" },
 ];
 
+export type Pillar = "structured-flow" | "asset-backed";
+
+export const PILLARS: { id: Pillar; label: string }[] = [
+  { id: "structured-flow", label: "Structured flow" },
+  { id: "asset-backed", label: "Asset-backed trading" },
+];
+
+export interface Criterion {
+  key: string;
+  label: string;
+  metric: string;
+  inverse?: boolean;
+  optional?: boolean;
+}
+
 export interface Scenario {
   id: string;
+  pillar: Pillar;
   title: string;
-  description: string;
-  criteria: Record<CriteriaKey, number>; // 1-5
+  description?: string;
+  testCase?: boolean;
+  criteria: Record<CriteriaKey, number>; // legacy generic profile
+  spec: Criterion[]; // ranking/filter criteria (Michael's model)
 }
 
 export interface Counterparty {
@@ -91,7 +109,6 @@ export const defaultConfig: Config = {
 // The configurable part of a scenario. Scope stays global; each scenario can
 // override weights, thresholds and rules.
 export interface ScenarioConfig {
-  weights: Record<CriteriaKey, number>;
   thresholds: { green: number; amber: number; reject: number };
   rules: { targetVolume: number; fitHigh: number; fitMid: number; returnGate: number };
 }
@@ -102,72 +119,142 @@ export function inheritConfig(
   override?: Partial<ScenarioConfig>,
 ): ScenarioConfig {
   return {
-    weights: { ...global.weights, ...(override?.weights ?? {}) },
     thresholds: { ...global.thresholds, ...(override?.thresholds ?? {}) },
     rules: { ...global.rules, ...(override?.rules ?? {}) },
   };
 }
 
+const GEN: Record<CriteriaKey, number> = {
+  strategicFit: 4,
+  profitability: 4,
+  portfolioSynergy: 3,
+  complexity: 3,
+  dataAvailability: 3,
+};
+
 export const scenarios: Scenario[] = [
   {
-    id: "gas-supply-storage",
-    title: "Gas Supply + Storage",
-    description: "Bundle firm gas supply with seasonal storage flexibility.",
-    criteria: {
-      strategicFit: 5,
-      profitability: 5,
-      portfolioSynergy: 5,
-      complexity: 3,
-      dataAvailability: 4,
-    },
+    id: "demand-market-access",
+    pillar: "structured-flow",
+    title: "Demand Market Access",
+    criteria: GEN,
+    spec: [
+      { key: "market-access-gap", label: "Market Access Gap", metric: "Number of direct exchange or clearing memberships (ICE, EEX)" },
+      { key: "balance-sheet-fit", label: "Balance Sheet Fit", metric: "Annual revenue or net assets" },
+      { key: "consumption-volume", label: "Consumption Volume", metric: "Annual gas or power consumption (GWh)" },
+      { key: "contract-flexibility", label: "Contract Flexibility Signal", metric: "Current contract type (fixed or captive vs flexible)" },
+      { key: "licensing-threshold", label: "Licensing Threshold Status", metric: "Below or above supply licence exemption threshold" },
+      { key: "expansion-signals", label: "Expansion Signals", metric: "Capex or expansion announcements (last 12 months)" },
+    ],
   },
   {
-    id: "standalone-storage",
-    title: "Standalone Storage Capacity",
-    description: "Contract dedicated storage capacity for optimisation.",
-    criteria: {
-      strategicFit: 4,
-      profitability: 3,
-      portfolioSynergy: 4,
-      complexity: 2,
-      dataAvailability: 5,
-    },
+    id: "asset-market-access",
+    pillar: "structured-flow",
+    title: "Asset Market Access",
+    criteria: GEN,
+    spec: [
+      { key: "asset-size-fit", label: "Asset Size Fit", metric: "Installed capacity (MW) or production (mcm/day)" },
+      { key: "route-to-market-lockin", label: "Route-to-Market Lock-in", metric: "PPA or offtake coverage status", inverse: true },
+      { key: "inhouse-trading", label: "In-house Trading Capability", metric: "Trading desk or licensed traders", inverse: true },
+      { key: "creditworthiness-band", label: "Creditworthiness Band", metric: "Net assets or credit rating proxy" },
+      { key: "flexibility-value", label: "Flexibility / Optionality Value", metric: "Asset type: storage, peaker, co-located battery vs baseload" },
+      { key: "hub-proximity", label: "Hub Proximity", metric: "Can trade on a virtual trading point" },
+    ],
   },
   {
-    id: "flexible-power",
-    title: "Flexible Power Asset",
-    description: "Tolling or offtake on a flexible generation asset.",
-    criteria: {
-      strategicFit: 3,
-      profitability: 4,
-      portfolioSynergy: 3,
-      complexity: 4,
-      dataAvailability: 3,
-    },
+    id: "trading-market-access",
+    pillar: "structured-flow",
+    title: "Trading Market Access",
+    criteria: GEN,
+    spec: [
+      { key: "efet-without-access", label: "EFET Signatory Without Access", metric: "On EFET member list but absent from exchange or clearing member list" },
+      { key: "trading-activity", label: "Trading Activity Level", metric: "Estimated annual traded volume (TWh or lots)" },
+      { key: "margin-capacity", label: "Margining / Collateral Capacity", metric: "Available cash or net assets as proxy" },
+      { key: "product-overlap", label: "Product Scope Overlap", metric: "Overlapping products (gas, power, carbon) vs SEE DMA offering" },
+      { key: "existing-dma", label: "Existing DMA / Broker Relationships", metric: "Number of known existing DMA providers", inverse: true },
+      { key: "reg-permissions-gap", label: "Regulatory Permissions Gap", metric: "Holds MiFID or EMIR permissions but lacks execution access" },
+    ],
   },
   {
-    id: "corporate-ppa",
-    title: "Corporate PPA",
-    description: "Long-term power purchase with a corporate offtaker.",
-    criteria: {
-      strategicFit: 4,
-      profitability: 3,
-      portfolioSynergy: 3,
-      complexity: 4,
-      dataAvailability: 3,
-    },
+    id: "working-capital",
+    pillar: "structured-flow",
+    title: "Working Capital",
+    criteria: GEN,
+    spec: [
+      { key: "wc-intensity", label: "Working Capital Intensity", metric: "Inventory or unbilled revenue as percent of revenue" },
+      { key: "liquidity-tightness", label: "Liquidity Tightness", metric: "Current ratio or quick ratio" },
+      { key: "facility-utilisation", label: "Existing Facility Utilisation", metric: "Registered charges or debentures nearing apparent limits" },
+      { key: "collateral-quality", label: "Collateral Quality", metric: "Eligible physical inventory (storage gas, EUA/UKA, RECs)" },
+      { key: "credit-risk-grade", label: "Credit Risk Grade", metric: "Credit rating or D&B risk score" },
+      { key: "deal-size", label: "Estimated Deal Size", metric: "Implied financing need (volume x price exposure)" },
+    ],
   },
   {
-    id: "gas-producer-lng",
-    title: "Gas Producer / LNG",
-    description: "Upstream gas or LNG supply origination.",
-    criteria: {
-      strategicFit: 3,
-      profitability: 4,
-      portfolioSynergy: 2,
-      complexity: 5,
-      dataAvailability: 2,
-    },
+    id: "gas-storage",
+    pillar: "asset-backed",
+    title: "Gas Storage",
+    criteria: GEN,
+    spec: [
+      { key: "capacity-util-gap", label: "Capacity Utilisation Gap", metric: "Booked vs utilised capacity percent (primary holders)" },
+      { key: "existing-storage", label: "Existing Storage Holdings", metric: "Booked storage capacity (mcm)", inverse: true },
+      { key: "balance-sheet-capacity", label: "Balance Sheet for Capacity Payments", metric: "Net assets or credit proxy" },
+      { key: "auction-history", label: "Auction Participation History", metric: "Past storage or capacity auction bids" },
+      { key: "portfolio-flex", label: "Portfolio Flexibility Requirement", metric: "Swing or imbalance exposure in portfolio" },
+    ],
+  },
+  {
+    id: "transport-capacity",
+    pillar: "asset-backed",
+    title: "Transport Capacity (Pipeline, PTR/FTR)",
+    criteria: GEN,
+    spec: [
+      { key: "capacity-util-gap", label: "Capacity Utilisation Gap", metric: "Booked vs utilised capacity percent" },
+      { key: "unhedged-ftr", label: "Unhedged FTR / PTR Position", metric: "Open FTR or PTR exposure without offsetting hedge" },
+      { key: "margin-capacity", label: "Margin / Collateral Capacity", metric: "Available cash or net assets" },
+      { key: "reg-allocation", label: "Regulatory Capacity Allocation Eligibility", metric: "Eligibility for primary or secondary allocation" },
+      { key: "secondary-activity", label: "Historical Secondary Market Activity", metric: "Secondary trades or transfers in past 12 months" },
+    ],
+  },
+  {
+    id: "non-re-tolls",
+    pillar: "asset-backed",
+    title: "Non-RE Generation Tolls",
+    criteria: GEN,
+    spec: [
+      { key: "plant-size-fit", label: "Plant Size Fit", metric: "Installed capacity (MW)" },
+      { key: "merchant-exposure", label: "Merchant Exposure", metric: "Percent of output uncontracted" },
+      { key: "inhouse-trading", label: "In-house Trading Capability", metric: "Trading or optimisation desk presence", inverse: true },
+      { key: "dispatch-flex", label: "Dispatch Flexibility Value", metric: "Start-up time, ramp rate, load factor", optional: true },
+      { key: "fuel-complexity", label: "Fuel Supply Complexity", metric: "Feedstock-linked structuring need (biogas)", optional: true },
+      { key: "distress-signal", label: "Financial Distress / Prepay Need Signal", metric: "Credit score or covenant headroom signals" },
+    ],
+  },
+  {
+    id: "structured-ppa",
+    pillar: "asset-backed",
+    title: "Structured PPA / Gas Offtake",
+    criteria: GEN,
+    spec: [
+      { key: "financing-gap", label: "Financing Gap", metric: "Project finance or capex funding shortfall" },
+      { key: "credit-gap-dma", label: "Credit Rating Gap for Direct Market Access", metric: "Rating vs minimum exchange or counterparty threshold" },
+      { key: "dev-stage-risk", label: "Development Stage Risk", metric: "Pre-COD or construction vs operational track record" },
+      { key: "existing-offtake", label: "Existing Offtake Coverage", metric: "Percent of output already contracted", inverse: true },
+      { key: "volume-size-fit", label: "Volume Size Fit", metric: "Annual volume vs SEE risk appetite band" },
+    ],
+  },
+  {
+    id: "battery-tolls",
+    pillar: "asset-backed",
+    title: "Battery Tolls (BESS)",
+    testCase: true,
+    criteria: GEN,
+    spec: [
+      { key: "battery-spec-fit", label: "Battery Spec Fit", metric: "MW / MWh (power and duration)" },
+      { key: "merchant-exposure", label: "Merchant Exposure", metric: "Percent of uncontracted revenue stack" },
+      { key: "grid-connection", label: "Recent or Imminent Grid Connection", metric: "Months since or until energisation" },
+      { key: "colocation", label: "Co-location Synergy", metric: "Co-located with RE or other flexible assets" },
+      { key: "credit-capacity-toll", label: "Credit / Financial Capacity for Toll", metric: "Net assets or credit proxy" },
+    ],
   },
 ];
 

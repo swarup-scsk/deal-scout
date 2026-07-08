@@ -24,12 +24,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import {
-  CRITERIA,
-  type Config,
-  type CriteriaKey,
-  type ScenarioConfig,
-} from "@/lib/data";
+import { PILLARS, type Config } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/scenario")({
@@ -38,41 +33,12 @@ export const Route = createFileRoute("/scenario")({
       { title: "Configure scenarios — SEE Origination Scout" },
       {
         name: "description",
-        content: "Configure origination scenarios and their scoring rules.",
+        content: "Configure origination scenarios and their ranking criteria.",
       },
     ],
   }),
   component: ConfigureScenarios,
 });
-
-function WeightSliders({
-  weights,
-  onChange,
-}: {
-  weights: Record<CriteriaKey, number>;
-  onChange: (k: CriteriaKey, v: number) => void;
-}) {
-  return (
-    <div className="space-y-1">
-      {CRITERIA.map((c) => (
-        <div key={c.key} className="flex items-center gap-3 py-1">
-          <span className="w-40 text-sm text-muted-foreground">{c.label}</span>
-          <Slider
-            className="flex-1"
-            min={1}
-            max={5}
-            step={1}
-            value={[weights[c.key]]}
-            onValueChange={(v) => onChange(c.key, v[0])}
-          />
-          <span className="w-4 text-right text-sm font-medium">
-            {weights[c.key]}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function NumField({
   label,
@@ -96,43 +62,6 @@ function NumField({
   );
 }
 
-function RulesEditor({
-  rules,
-  thresholds,
-  onRule,
-  onThreshold,
-}: {
-  rules: Config["rules"];
-  thresholds: Config["thresholds"];
-  onRule: (field: keyof Config["rules"], v: number) => void;
-  onThreshold: (field: keyof Config["thresholds"], v: number) => void;
-}) {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      <NumField
-        label="Minimum volume (GWh/yr)"
-        value={rules.targetVolume}
-        onChange={(v) => onRule("targetVolume", v)}
-      />
-      <NumField
-        label="Minimum margin (EUR)"
-        value={rules.returnGate}
-        onChange={(v) => onRule("returnGate", v)}
-      />
-      <NumField
-        label="Strong score at or above"
-        value={thresholds.green}
-        onChange={(v) => onThreshold("green", v)}
-      />
-      <NumField
-        label="Borderline score at or above"
-        value={thresholds.amber}
-        onChange={(v) => onThreshold("amber", v)}
-      />
-    </div>
-  );
-}
-
 function ConfigureScenarios() {
   const {
     config,
@@ -141,9 +70,12 @@ function ConfigureScenarios() {
     addScenario,
     renameScenario,
     deleteScenario,
+    scenarioOverrides,
     setScenarioOverride,
     clearScenarioOverride,
     resolvedScenarioConfig,
+    criterionWeights,
+    setCriterionWeight,
     setSelectedScenarioId,
     dirty,
     saveAll,
@@ -153,13 +85,11 @@ function ConfigureScenarios() {
   const [openId, setOpenId] = useState<string | null>(scenarios[0]?.id ?? null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const globalCfg: ScenarioConfig = {
-    weights: config.weights,
-    thresholds: config.thresholds,
-    rules: config.rules,
-  };
+  const getWeight = (id: string, key: string) =>
+    criterionWeights[id]?.[key] ?? 3;
   const isCustom = (id: string) =>
-    JSON.stringify(resolvedScenarioConfig(id)) !== JSON.stringify(globalCfg);
+    (criterionWeights[id] && Object.keys(criterionWeights[id]).length > 0) ||
+    !!scenarioOverrides[id];
 
   const open = (id: string) => {
     setSelectedScenarioId(id);
@@ -167,17 +97,10 @@ function ConfigureScenarios() {
     navigate({ to: "/prospecting", search: { scenario: id } });
   };
 
-  const setGWeight = (k: CriteriaKey, v: number) =>
-    setConfig({ ...config, weights: { ...config.weights, [k]: v } });
   const setGRule = (field: keyof Config["rules"], v: number) =>
     setConfig({ ...config, rules: { ...config.rules, [field]: v } });
   const setGThreshold = (field: keyof Config["thresholds"], v: number) =>
     setConfig({ ...config, thresholds: { ...config.thresholds, [field]: v } });
-
-  const setSWeight = (id: string, k: CriteriaKey, v: number) => {
-    const cur = resolvedScenarioConfig(id);
-    setScenarioOverride(id, { weights: { ...cur.weights, [k]: v } });
-  };
   const setSRule = (id: string, field: keyof Config["rules"], v: number) => {
     const cur = resolvedScenarioConfig(id);
     setScenarioOverride(id, { rules: { ...cur.rules, [field]: v } });
@@ -192,14 +115,15 @@ function ConfigureScenarios() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">
             Configure scenarios
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Set the baseline, tune each deal type, then open one to prospect.
+            Set the criteria for each transaction type. Criteria drive ranking
+            and act as search filters.
           </p>
         </div>
         <Button onClick={saveAll} disabled={!dirty}>
@@ -207,6 +131,7 @@ function ConfigureScenarios() {
         </Button>
       </div>
 
+      {/* Global configuration (collapsed) */}
       <Card className="p-0">
         <button
           className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
@@ -228,28 +153,37 @@ function ConfigureScenarios() {
             </span>
           </span>
           <span className="text-xs text-muted-foreground">
-            {config.scope.commodity} · {config.scope.region} ·{" "}
-            {config.scope.hub}
+            {config.scope.commodity} · {config.scope.region} · {config.scope.hub}
           </span>
         </button>
         {globalOpen && (
           <div className="space-y-4 border-t border-border px-4 py-4">
             <div>
-              <div className="mb-1 text-xs font-semibold text-muted-foreground">
-                What matters most
-              </div>
-              <WeightSliders weights={config.weights} onChange={setGWeight} />
-            </div>
-            <div>
               <div className="mb-2 text-xs font-semibold text-muted-foreground">
                 Rules
               </div>
-              <RulesEditor
-                rules={config.rules}
-                thresholds={config.thresholds}
-                onRule={setGRule}
-                onThreshold={setGThreshold}
-              />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <NumField
+                  label="Min volume (GWh/yr)"
+                  value={config.rules.targetVolume}
+                  onChange={(v) => setGRule("targetVolume", v)}
+                />
+                <NumField
+                  label="Min margin (EUR)"
+                  value={config.rules.returnGate}
+                  onChange={(v) => setGRule("returnGate", v)}
+                />
+                <NumField
+                  label="Strong at or above"
+                  value={config.thresholds.green}
+                  onChange={(v) => setGThreshold("green", v)}
+                />
+                <NumField
+                  label="Borderline at or above"
+                  value={config.thresholds.amber}
+                  onChange={(v) => setGThreshold("amber", v)}
+                />
+              </div>
             </div>
             <div>
               <div className="mb-2 text-xs font-semibold text-muted-foreground">
@@ -304,121 +238,194 @@ function ConfigureScenarios() {
         )}
       </Card>
 
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-muted-foreground">
-          Scenarios
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setOpenId(addScenario("New scenario"))}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Add scenario
-        </Button>
-      </div>
-
-      <div className="space-y-3">
-        {scenarios.map((s) => {
-          const isOpen = openId === s.id;
-          const cfg = resolvedScenarioConfig(s.id);
-          const custom = isCustom(s.id);
-          return (
-            <Card
-              key={s.id}
-              className={`p-0 ${isOpen ? "border-primary/40" : ""}`}
+      {/* Pillars and their scenarios */}
+      {PILLARS.map((pillar) => (
+        <div key={pillar.id} className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-accent">
+              {pillar.label}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setOpenId(addScenario(pillar.id, "New transaction type"))
+              }
             >
-              <div
-                className={`flex items-center justify-between gap-2 px-4 py-3 ${
-                  isOpen ? "bg-primary/5" : ""
-                }`}
-              >
-                <button
-                  className="flex flex-1 items-center gap-2 text-left"
-                  onClick={() => setOpenId(isOpen ? null : s.id)}
-                >
-                  {isOpen ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className="text-sm font-medium text-foreground">
-                    {s.title}
-                  </span>
-                  <Badge variant={custom ? "default" : "secondary"}>
-                    {custom ? "Customised" : "Default"}
-                  </Badge>
-                </button>
-                {!isOpen && (
-                  <Button size="sm" variant="outline" onClick={() => open(s.id)}>
-                    Open <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <Plus className="mr-2 h-4 w-4" /> Add transaction type
+            </Button>
+          </div>
 
-              {isOpen && (
-                <div className="space-y-4 border-t border-border px-4 py-4">
-                  <div>
-                    <Label className="mb-1 block text-xs text-muted-foreground">
-                      Scenario name
-                    </Label>
-                    <Input
-                      value={s.title}
-                      onChange={(e) => renameScenario(s.id, e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <div className="mb-1 text-xs font-semibold text-muted-foreground">
-                      What matters most
-                    </div>
-                    <WeightSliders
-                      weights={cfg.weights}
-                      onChange={(k, v) => setSWeight(s.id, k, v)}
-                    />
-                  </div>
-                  <div>
-                    <div className="mb-2 text-xs font-semibold text-muted-foreground">
-                      Rules
-                    </div>
-                    <RulesEditor
-                      rules={cfg.rules}
-                      thresholds={cfg.thresholds}
-                      onRule={(f, v) => setSRule(s.id, f, v)}
-                      onThreshold={(f, v) => setSThreshold(s.id, f, v)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between border-t border-border pt-3">
-                    <div className="flex items-center gap-1">
+          {scenarios
+            .filter((s) => s.pillar === pillar.id)
+            .map((s) => {
+              const isOpen = openId === s.id;
+              const cfg = resolvedScenarioConfig(s.id);
+              const custom = isCustom(s.id);
+              return (
+                <Card
+                  key={s.id}
+                  className={`p-0 ${isOpen ? "border-primary/40" : ""}`}
+                >
+                  <div
+                    className={`flex items-center justify-between gap-2 px-4 py-3 ${
+                      isOpen ? "bg-primary/5" : ""
+                    }`}
+                  >
+                    <button
+                      className="flex flex-1 items-center gap-2 text-left"
+                      onClick={() => setOpenId(isOpen ? null : s.id)}
+                    >
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <span className="text-sm font-medium text-foreground">
+                        {s.title}
+                      </span>
+                      {s.testCase && <Badge>Test case</Badge>}
+                      <Badge variant={custom ? "default" : "secondary"}>
+                        {custom
+                          ? "Customised"
+                          : `${s.spec.length} criteria · Default`}
+                      </Badge>
+                    </button>
+                    {!isOpen && (
                       <Button
-                        variant="ghost"
                         size="sm"
-                        onClick={() => clearScenarioOverride(s.id)}
+                        variant="outline"
+                        onClick={() => open(s.id)}
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" /> Reset to defaults
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setDeleteId(s.id)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={saveAll}>
-                        Save
-                      </Button>
-                      <Button size="sm" onClick={() => open(s.id)}>
                         Open <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
-                    </div>
+                    )}
                   </div>
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+
+                  {isOpen && (
+                    <div className="space-y-4 border-t border-border px-4 py-4">
+                      <div>
+                        <Label className="mb-1 block text-xs text-muted-foreground">
+                          Transaction type name
+                        </Label>
+                        <Input
+                          value={s.title}
+                          onChange={(e) => renameScenario(s.id, e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="mb-1 text-xs font-semibold text-muted-foreground">
+                          Criteria and importance
+                        </div>
+                        {s.spec.length === 0 && (
+                          <p className="py-2 text-sm text-muted-foreground">
+                            No criteria defined yet.
+                          </p>
+                        )}
+                        {s.spec.map((crit) => (
+                          <div
+                            key={crit.key}
+                            className="flex items-center gap-3 border-b border-border py-2 last:border-b-0"
+                          >
+                            <div className="flex-1">
+                              <div className="text-sm text-foreground">
+                                {crit.label}
+                                {crit.inverse && (
+                                  <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
+                                    inverse
+                                  </span>
+                                )}
+                                {crit.optional && (
+                                  <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    optional
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {crit.metric}
+                                {crit.inverse && " · scores higher when absent"}
+                              </div>
+                            </div>
+                            <Slider
+                              className="w-[150px]"
+                              min={1}
+                              max={5}
+                              step={1}
+                              value={[getWeight(s.id, crit.key)]}
+                              onValueChange={(v) =>
+                                setCriterionWeight(s.id, crit.key, v[0])
+                              }
+                            />
+                            <span className="w-4 text-right text-sm font-medium">
+                              {getWeight(s.id, crit.key)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div>
+                        <div className="mb-2 text-xs font-semibold text-muted-foreground">
+                          Rules (inherited from global, override here)
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                          <NumField
+                            label="Min volume (GWh/yr)"
+                            value={cfg.rules.targetVolume}
+                            onChange={(v) => setSRule(s.id, "targetVolume", v)}
+                          />
+                          <NumField
+                            label="Min margin (EUR)"
+                            value={cfg.rules.returnGate}
+                            onChange={(v) => setSRule(s.id, "returnGate", v)}
+                          />
+                          <NumField
+                            label="Strong at or above"
+                            value={cfg.thresholds.green}
+                            onChange={(v) => setSThreshold(s.id, "green", v)}
+                          />
+                          <NumField
+                            label="Borderline at or above"
+                            value={cfg.thresholds.amber}
+                            onChange={(v) => setSThreshold(s.id, "amber", v)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-border pt-3">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => clearScenarioOverride(s.id)}
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" /> Reset
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteId(s.id)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={saveAll}>
+                            Save
+                          </Button>
+                          <Button size="sm" onClick={() => open(s.id)}>
+                            Open <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+        </div>
+      ))}
 
       <AlertDialog
         open={deleteId !== null}
@@ -426,10 +433,10 @@ function ConfigureScenarios() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete scenario?</AlertDialogTitle>
+            <AlertDialogTitle>Delete transaction type?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the scenario and its saved configuration. Save all to
-              persist the change. This cannot be undone.
+              This removes the transaction type and its saved configuration. Save
+              all to persist the change. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

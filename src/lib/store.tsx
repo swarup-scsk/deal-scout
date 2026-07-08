@@ -14,11 +14,12 @@ import {
   scenarios as seedScenarios,
   type Config,
   type Counterparty,
+  type Pillar,
   type Scenario,
   type ScenarioConfig,
 } from "./data";
 
-const STORAGE_KEY = "deal-scout.state";
+const STORAGE_KEY = "deal-scout.state.v2";
 
 interface Decision {
   choice: "Proceed" | "Hold" | "Decline";
@@ -34,7 +35,7 @@ interface StoreValue {
   configOpen: boolean;
   setConfigOpen: (v: boolean) => void;
   scenarios: Scenario[];
-  addScenario: (title: string) => string;
+  addScenario: (pillar: Pillar, title: string) => string;
   renameScenario: (id: string, title: string) => void;
   deleteScenario: (id: string) => void;
   counterparties: Counterparty[];
@@ -50,6 +51,8 @@ interface StoreValue {
   setScenarioOverride: (id: string, partial: Partial<ScenarioConfig>) => void;
   clearScenarioOverride: (id: string) => void;
   resolvedScenarioConfig: (id: string) => ScenarioConfig;
+  criterionWeights: Record<string, Record<string, number>>;
+  setCriterionWeight: (id: string, key: string, v: number) => void;
   dirty: boolean;
   saveAll: () => void;
 }
@@ -59,13 +62,16 @@ const StoreContext = createContext<StoreValue | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<Config>(defaultConfig);
   const [selectedScenarioId, setSelectedScenarioId] =
-    useState<string>("gas-supply-storage");
+    useState<string>("demand-market-access");
   const [configOpen, setConfigOpen] = useState(false);
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
   const [scenarioOverrides, setScenarioOverrides] = useState<
     Record<string, Partial<ScenarioConfig>>
   >({});
   const [scenarioList, setScenarioList] = useState<Scenario[]>(seedScenarios);
+  const [criterionWeights, setCriterionWeights] = useState<
+    Record<string, Record<string, number>>
+  >({});
   const [hydrated, setHydrated] = useState(false);
   const [savedSnap, setSavedSnap] = useState("");
 
@@ -77,6 +83,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const s = JSON.parse(raw);
         if (s.config) setConfig(s.config);
         if (s.scenarioOverrides) setScenarioOverrides(s.scenarioOverrides);
+        if (s.criterionWeights) setCriterionWeights(s.criterionWeights);
         if (s.scenarioList) setScenarioList(s.scenarioList);
         setSavedSnap(raw);
       } else {
@@ -84,6 +91,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           JSON.stringify({
             config: defaultConfig,
             scenarioOverrides: {},
+            criterionWeights: {},
             scenarioList: seedScenarios,
           }),
         );
@@ -113,22 +121,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return {
         ...p,
         [id]: {
-          weights: { ...prev.weights, ...partial.weights },
           thresholds: { ...prev.thresholds, ...partial.thresholds },
           rules: { ...prev.rules, ...partial.rules },
         },
       };
     });
-  const clearScenarioOverride = (id: string) =>
+  const clearScenarioOverride = (id: string) => {
     setScenarioOverrides((p) => {
       const n = { ...p };
       delete n[id];
       return n;
     });
+    setCriterionWeights((p) => {
+      const n = { ...p };
+      delete n[id];
+      return n;
+    });
+  };
+  const setCriterionWeight = (id: string, key: string, v: number) =>
+    setCriterionWeights((p) => ({ ...p, [id]: { ...(p[id] ?? {}), [key]: v } }));
   const resolvedScenarioConfig = (id: string) =>
     inheritConfig(config, scenarioOverrides[id]);
 
-  const addScenario = (title: string) => {
+  const addScenario = (pillar: Pillar, title: string) => {
     const base = title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -138,9 +153,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...l,
       {
         id,
-        title: title || "New scenario",
-        description: "",
+        pillar,
+        title: title || "New transaction type",
         criteria: { ...config.weights },
+        spec: [],
       },
     ]);
     return id;
@@ -152,7 +168,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     clearScenarioOverride(id);
   };
 
-  const currentSnap = JSON.stringify({ config, scenarioOverrides, scenarioList });
+  const currentSnap = JSON.stringify({
+    config,
+    scenarioOverrides,
+    criterionWeights,
+    scenarioList,
+  });
   const dirty = hydrated && currentSnap !== savedSnap;
   const saveAll = () => {
     try {
@@ -182,6 +203,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setScenarioOverride,
     clearScenarioOverride,
     resolvedScenarioConfig,
+    criterionWeights,
+    setCriterionWeight,
     dirty,
     saveAll,
   };
