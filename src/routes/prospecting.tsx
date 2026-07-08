@@ -6,6 +6,7 @@ import {
   Download,
   Filter,
   Plus,
+  RefreshCw,
   Settings2,
   SlidersHorizontal,
 } from "lucide-react";
@@ -85,6 +86,7 @@ function UniverseScreen() {
   const [sortDesc, setSortDesc] = useState(Boolean(search.scenario));
   const [moreOpen, setMoreOpen] = useState(false);
   const [scenarioId, setScenarioId] = useState(search.scenario ?? "none");
+  const [lastScan, setLastScan] = useState("today 06:00 CET");
   const [dl, setDl] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
@@ -141,11 +143,15 @@ function UniverseScreen() {
   }[] = [
     { key: "company", label: "Company", get: (c) => c.company },
     { key: "country", label: "Country", get: (c) => c.country },
-    { key: "businessLineType", label: "Business line", get: (c) => c.businessLineType },
+    { key: "legalEntityName", label: "Legal entity", get: (c) => c.legalEntityName },
+    { key: "lei", label: "LEI", get: (c) => c.lei },
     { key: "revenueEbitda", label: "Revenue / EBITDA", get: (c) => c.revenueEbitda },
     { key: "headcount", label: "Headcount", get: (c) => c.headcount },
+    { key: "businessLineType", label: "Business line", get: (c) => c.businessLineType },
+    { key: "portfolioSize", label: "Portfolio", get: (c) => c.portfolioSize },
     { key: "markets", label: "Gas & power markets", get: (c) => c.markets },
     { key: "annualVolume", label: "Volume", get: (c) => c.annualVolume, align: "right" },
+    { key: "aiInsight", label: "AI insight", get: (c) => c.aiInsight },
     ...(applied
       ? [
           {
@@ -261,6 +267,30 @@ function UniverseScreen() {
             </div>
           </div>
         );
+      case "legalEntityName":
+        return (
+          <span
+            className="block max-w-[130px] truncate text-muted-foreground"
+            title={cp.legalEntityName}
+          >
+            {cp.legalEntityName}
+          </span>
+        );
+      case "lei":
+        return (
+          <span
+            className="block max-w-[120px] truncate font-mono text-[11px] text-muted-foreground"
+            title={cp.lei}
+          >
+            {cp.lei}
+          </span>
+        );
+      case "aiInsight":
+        return (
+          <span className="block max-w-[180px] text-muted-foreground">
+            {cp.aiInsight}
+          </span>
+        );
       case "businessLineType":
         return (
           <div>
@@ -305,20 +335,31 @@ function UniverseScreen() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Universe</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold text-foreground">
+              Counterparties
+            </h1>
             {applied ? (
-              <>
-                Scored for{" "}
-                <span className="font-medium text-foreground">
-                  {scenario?.title}
-                </span>
-                , ranked by fit.
-              </>
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                Scenario: {scenario?.title}
+              </span>
             ) : (
-              <>Latest scan, all counterparties. No scenario applied.</>
+              <span className="rounded-full bg-secondary px-3 py-1 text-sm font-medium text-foreground">
+                Universe
+              </span>
             )}
-          </p>
+          </div>
+          <div className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Last scan {lastScan}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setLastScan("just now")}
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Re-run market scan
+            </Button>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Select value={scenarioId} onValueChange={chooseScenario}>
@@ -327,10 +368,10 @@ function UniverseScreen() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">No scenario (browse)</SelectItem>
+              <SelectItem value="none">Universe</SelectItem>
               {scenarios.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  Apply: {s.title}
+                  {s.title}
                 </SelectItem>
               ))}
             </SelectContent>
