@@ -3,12 +3,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowUp,
-  ChevronDown,
   Download,
   Filter,
-  ListChecks,
-  RefreshCw,
-  Search,
+  Plus,
+  Settings2,
   SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -33,12 +30,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { fitBarClass, fitColorClass, fitScore } from "@/lib/data";
+import {
+  fitBarClass,
+  fitColorClass,
+  fitScore,
+  type BusinessLineType,
+} from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/prospecting")({
@@ -47,29 +56,45 @@ export const Route = createFileRoute("/prospecting")({
   }),
   head: () => ({
     meta: [
-      { title: "AI-Assisted Prospecting — SEE Origination Scout" },
+      { title: "Universe — SEE Origination Scout" },
       {
         name: "description",
-        content:
-          "Scan the market for counterparties that fit the selected origination scenario.",
+        content: "Browse the counterparty universe and apply scenarios to score.",
       },
     ],
   }),
-  component: ProspectingScreen,
+  component: UniverseScreen,
 });
 
-function ProspectingScreen() {
-  const { rankedCounterparties, config, scenarios, selectedScenarioId, setConfigOpen } =
-    useStore();
+const BUSINESS_LINES: BusinessLineType[] = [
+  "Asset Owner",
+  "Trader",
+  "Energy Supplier",
+  "Large Consumer",
+  "Optimizer/Aggregator",
+  "Service Provider",
+];
+
+function UniverseScreen() {
+  const { counterparties, addCounterparty, config, scenarios } = useStore();
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const [filter, setFilter] = useState("");
   const [country, setCountry] = useState("all");
-  const [sortKey, setSortKey] = useState("fit");
-  const [sortDesc, setSortDesc] = useState(true);
+  const [sortKey, setSortKey] = useState(search.scenario ? "fit" : "company");
+  const [sortDesc, setSortDesc] = useState(Boolean(search.scenario));
   const [moreOpen, setMoreOpen] = useState(false);
-  const [customOpen, setCustomOpen] = useState(false);
-  const [acrossScenarios, setAcrossScenarios] = useState(false);
+  const [scenarioId, setScenarioId] = useState(search.scenario ?? "none");
   const [dl, setDl] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({
+    company: "",
+    country: "",
+    businessLineType: "Energy Supplier" as BusinessLineType,
+    markets: "",
+    annualVolume: 0,
+    revenueEbitda: "",
+  });
   const [adv, setAdv] = useState({
     businessLineType: "all",
     market: "",
@@ -77,26 +102,24 @@ function ProspectingScreen() {
     minFit: 0,
   });
 
-  const selectedScenario = scenarios.find((s) => s.id === selectedScenarioId);
+  const applied = scenarioId !== "none";
+  const scenario = scenarios.find((s) => s.id === scenarioId);
 
-  const acrossInfo: Record<string, { title: string; score: number }> = {};
-  for (const cp of rankedCounterparties) {
-    let bestTitle = "-";
-    let best = -1;
-    for (const s of scenarios) {
-      const sc = fitScore(cp, s.criteria);
-      if (sc > best) {
-        best = sc;
-        bestTitle = s.title;
-      }
-    }
-    acrossInfo[cp.id] = { title: bestTitle, score: best };
-  }
+  let rows = counterparties.map((cp) => {
+    const fit = applied ? fitScore(cp, config.weights) : 0;
+    const belowVolume = cp.annualVolume < config.rules.targetVolume;
+    const belowMargin = cp.margin < config.rules.returnGate;
+    const belowHurdle = applied && fit < config.rules.fitMid;
+    return { ...cp, fit, belowVolume, belowMargin, belowHurdle };
+  });
 
-  let rows = rankedCounterparties.filter((cp) => {
+  type Row = (typeof rows)[number];
+  rows = rows.filter((cp) => {
+    const t = filter.toLowerCase();
     const matchText =
-      cp.company.toLowerCase().includes(filter.toLowerCase()) ||
-      cp.businessLine.toLowerCase().includes(filter.toLowerCase());
+      cp.company.toLowerCase().includes(t) ||
+      cp.businessLine.toLowerCase().includes(t) ||
+      cp.legalEntityName.toLowerCase().includes(t);
     const matchCountry = country === "all" || cp.country === country;
     const matchType =
       adv.businessLineType === "all" ||
@@ -104,13 +127,12 @@ function ProspectingScreen() {
     const matchMarket =
       !adv.market || cp.markets.toLowerCase().includes(adv.market.toLowerCase());
     const matchVolume = cp.annualVolume >= adv.minVolume;
-    const matchFit = cp.fit >= adv.minFit;
+    const matchFit = !applied || cp.fit >= adv.minFit;
     return (
       matchText && matchCountry && matchType && matchMarket && matchVolume && matchFit
     );
   });
 
-  type Row = (typeof rows)[number];
   const columns: {
     key: string;
     label: string;
@@ -119,29 +141,25 @@ function ProspectingScreen() {
   }[] = [
     { key: "company", label: "Company", get: (c) => c.company },
     { key: "country", label: "Country", get: (c) => c.country },
-    { key: "legalEntityName", label: "Legal entity", get: (c) => c.legalEntityName },
-    { key: "lei", label: "LEI", get: (c) => c.lei },
+    { key: "businessLineType", label: "Business line", get: (c) => c.businessLineType },
     { key: "revenueEbitda", label: "Revenue / EBITDA", get: (c) => c.revenueEbitda },
     { key: "headcount", label: "Headcount", get: (c) => c.headcount },
-    { key: "businessLineType", label: "Business line", get: (c) => c.businessLineType },
-    { key: "portfolioSize", label: "Portfolio", get: (c) => c.portfolioSize },
-    { key: "markets", label: "Gas & Power markets", get: (c) => c.markets },
+    { key: "markets", label: "Gas & power markets", get: (c) => c.markets },
     { key: "annualVolume", label: "Volume", get: (c) => c.annualVolume, align: "right" },
-    { key: "aiInsight", label: "AI insight", get: (c) => c.aiInsight },
-    ...(acrossScenarios
+    ...(applied
       ? [
           {
-            key: "bestScenario",
-            label: "Best-fit scenario",
-            get: (c: Row) => acrossInfo[c.id].title,
+            key: "fit",
+            label: "Fit",
+            get: (c: Row) => c.fit,
+            align: "right" as const,
           },
         ]
       : []),
-    { key: "fit", label: "Fit", get: (c) => c.fit, align: "right" as const },
   ];
   const restCols = columns.filter((c) => c.key !== "company");
 
-  const getter = columns.find((c) => c.key === sortKey)?.get ?? ((c: Row) => c.fit);
+  const getter = columns.find((c) => c.key === sortKey)?.get ?? ((c: Row) => c.company);
   rows = [...rows].sort((a, b) => {
     const av = getter(a);
     const bv = getter(b);
@@ -160,9 +178,41 @@ function ProspectingScreen() {
     }
   };
 
+  const chooseScenario = (v: string) => {
+    setScenarioId(v);
+    if (v === "none") {
+      setSortKey("company");
+      setSortDesc(false);
+    } else {
+      setSortKey("fit");
+      setSortDesc(true);
+    }
+  };
+
   const mockDownload = (kind: string) => {
     setDl(`Preparing ${kind} (mock)…`);
     setTimeout(() => setDl(""), 2500);
+  };
+
+  const submitAdd = () => {
+    if (!form.company.trim()) return;
+    addCounterparty({
+      company: form.company.trim(),
+      country: form.country.trim() || "Unknown",
+      businessLineType: form.businessLineType,
+      markets: form.markets.trim(),
+      annualVolume: form.annualVolume,
+      revenueEbitda: form.revenueEbitda.trim(),
+    });
+    setForm({
+      company: "",
+      country: "",
+      businessLineType: "Energy Supplier",
+      markets: "",
+      annualVolume: 0,
+      revenueEbitda: "",
+    });
+    setAddOpen(false);
   };
 
   const headCell = (col: (typeof columns)[number]) => {
@@ -193,36 +243,23 @@ function ProspectingScreen() {
           <div>
             <div className="font-medium text-foreground">{cp.company}</div>
             <div className="mt-0.5 flex flex-wrap gap-1">
+              {cp.belowVolume && (
+                <Badge variant="outline" className="text-[10px]">
+                  Below volume
+                </Badge>
+              )}
+              {cp.belowMargin && (
+                <Badge variant="outline" className="text-[10px]">
+                  Below margin
+                </Badge>
+              )}
               {cp.belowHurdle && (
                 <Badge variant="destructive" className="text-[10px]">
                   Below hurdle
                 </Badge>
               )}
-              {cp.belowTarget && (
-                <Badge variant="outline" className="text-[10px]">
-                  Below target
-                </Badge>
-              )}
             </div>
           </div>
-        );
-      case "legalEntityName":
-        return (
-          <span
-            className="block max-w-[130px] truncate text-muted-foreground"
-            title={cp.legalEntityName}
-          >
-            {cp.legalEntityName}
-          </span>
-        );
-      case "lei":
-        return (
-          <span
-            className="block max-w-[120px] truncate font-mono text-[11px] text-muted-foreground"
-            title={cp.lei}
-          >
-            {cp.lei}
-          </span>
         );
       case "businessLineType":
         return (
@@ -234,21 +271,13 @@ function ProspectingScreen() {
           </div>
         );
       case "markets":
-        return <span className="whitespace-normal">{cp.markets}</span>;
+        return <span className="text-muted-foreground">{cp.markets}</span>;
       case "annualVolume":
         return (
           <span className="whitespace-nowrap">
             {cp.annualVolume.toLocaleString()} GWh
           </span>
         );
-      case "aiInsight":
-        return (
-          <span className="block max-w-[170px] text-muted-foreground">
-            {cp.aiInsight}
-          </span>
-        );
-      case "bestScenario":
-        return <span>{acrossInfo[cp.id].title}</span>;
       case "fit":
         return (
           <div className="flex items-center justify-end gap-2">
@@ -274,95 +303,73 @@ function ProspectingScreen() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">
-          AI-Assisted Prospecting
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Scanning {config.scope.region} for counterparties that fit{" "}
-          <span className="font-medium text-foreground">
-            {selectedScenario?.title}
-          </span>
-          , ranked by weighted fit against your active rules.
-        </p>
-      </div>
-
-      {/* Auto search: subtle horizontal bar, prominent CTA */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-2.5">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <RefreshCw className="h-4 w-4" />
-          <span>
-            <span className="font-medium text-foreground">Auto search</span> runs
-            on a schedule. Last run today 06:00 CET.
-          </span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Universe</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {applied ? (
+              <>
+                Scored for{" "}
+                <span className="font-medium text-foreground">
+                  {scenario?.title}
+                </span>
+                , ranked by fit.
+              </>
+            ) : (
+              <>Latest scan, all counterparties. No scenario applied.</>
+            )}
+          </p>
         </div>
-        <Button size="sm">Re-run market scan</Button>
-      </div>
-
-      {/* Custom search: collapsed by default */}
-      <div className="rounded-lg border border-border">
-        <button
-          className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm"
-          onClick={() => setCustomOpen((v) => !v)}
-        >
-          <span className="flex items-center gap-2 text-muted-foreground">
-            <Search className="h-4 w-4" />
-            <span className="font-medium text-foreground">Custom search</span>
-          </span>
-          <ChevronDown
-            className={`h-4 w-4 text-muted-foreground transition-transform ${customOpen ? "rotate-180" : ""}`}
-          />
-        </button>
-        {customOpen && (
-          <div className="grid gap-3 border-t border-border px-4 py-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Country</Label>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Netherlands">Netherlands</SelectItem>
-                  <SelectItem value="Belgium">Belgium</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Location</Label>
-              <Input placeholder="e.g. Rotterdam" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Scenario controls */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => navigate({ to: "/scenario" })}>
-          <ListChecks className="mr-2 h-4 w-4" /> Select Scenarios
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setConfigOpen(true)}>
-          <SlidersHorizontal className="mr-2 h-4 w-4" /> Adjust Weights
-        </Button>
-        <div className="ml-auto flex items-center gap-2">
-          <Switch
-            id="across"
-            checked={acrossScenarios}
-            onCheckedChange={setAcrossScenarios}
-          />
-          <Label htmlFor="across" className="text-sm">
-            Across all scenarios
-          </Label>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={scenarioId} onValueChange={chooseScenario}>
+            <SelectTrigger className="w-56">
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No scenario (browse)</SelectItem>
+              {scenarios.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  Apply: {s.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add counterparty
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="mr-2 h-4 w-4" /> Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => mockDownload("table-only export")}>
+                Table only
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => mockDownload("detailed view export")}>
+                Detailed view
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate({ to: "/scenario" })}
+          >
+            <Settings2 className="mr-2 h-4 w-4" /> Configure
+          </Button>
         </div>
       </div>
 
-      {/* Table controls */}
+      {/* Search and filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Filter className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            className="w-56 pl-8"
-            placeholder="Filter companies…"
+            className="w-64 pl-8"
+            placeholder="Search counterparties, or add a name…"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -384,28 +391,12 @@ function ProspectingScreen() {
         >
           <SlidersHorizontal className="mr-2 h-4 w-4" /> More filters
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" /> Download
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => mockDownload("table-only export")}>
-              Table only
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => mockDownload("detailed view export")}>
-              Detailed view
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
         {dl && <span className="text-xs text-muted-foreground">{dl}</span>}
         <Badge variant="secondary" className="ml-auto">
           {rows.length} counterparties
         </Badge>
       </div>
 
-      {/* Inline advanced filters (no popup) */}
       {moreOpen && (
         <Card className="p-4">
           <div className="mb-3 flex items-center justify-between">
@@ -414,12 +405,7 @@ function ProspectingScreen() {
               variant="ghost"
               size="sm"
               onClick={() =>
-                setAdv({
-                  businessLineType: "all",
-                  market: "",
-                  minVolume: 0,
-                  minFit: 0,
-                })
+                setAdv({ businessLineType: "all", market: "", minVolume: 0, minFit: 0 })
               }
             >
               Reset
@@ -430,25 +416,18 @@ function ProspectingScreen() {
               <Label className="text-xs">Business line</Label>
               <Select
                 value={adv.businessLineType}
-                onValueChange={(v) =>
-                  setAdv((a) => ({ ...a, businessLineType: v }))
-                }
+                onValueChange={(v) => setAdv((a) => ({ ...a, businessLineType: v }))}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Asset Owner">Asset Owner</SelectItem>
-                  <SelectItem value="Trader">Trader</SelectItem>
-                  <SelectItem value="Energy Supplier">Energy Supplier</SelectItem>
-                  <SelectItem value="Large Consumer">Large Consumer</SelectItem>
-                  <SelectItem value="Optimizer/Aggregator">
-                    Optimizer/Aggregator
-                  </SelectItem>
-                  <SelectItem value="Service Provider">
-                    Service Provider
-                  </SelectItem>
+                  {BUSINESS_LINES.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -471,10 +450,11 @@ function ProspectingScreen() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Min fit score</Label>
+              <Label className="text-xs">Min fit (needs a scenario)</Label>
               <Input
                 type="number"
                 value={adv.minFit || ""}
+                disabled={!applied}
                 onChange={(e) =>
                   setAdv((a) => ({ ...a, minFit: Number(e.target.value) || 0 }))
                 }
@@ -484,7 +464,7 @@ function ProspectingScreen() {
         </Card>
       )}
 
-      {/* Results table: CTA in the second column, compact, sortable headers */}
+      {/* Universe table */}
       <Card className="overflow-x-auto p-0">
         <Table className="w-full text-xs [&_th]:px-2 [&_th]:py-2 [&_td]:px-2 [&_td]:py-2 [&_td]:align-top">
           <TableHeader>
@@ -499,21 +479,17 @@ function ProspectingScreen() {
               <TableRow key={cp.id}>
                 <TableCell>{renderCell("company", cp)}</TableCell>
                 <TableCell>
-                  {cp.rejected ? (
-                    <Badge variant="destructive">Rejected</Badge>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        navigate({
-                          to: "/qualification/$id",
-                          params: { id: cp.id },
-                        })
-                      }
-                    >
-                      Deep Dive
-                    </Button>
-                  )}
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      navigate({
+                        to: "/qualification/$id",
+                        params: { id: cp.id },
+                      })
+                    }
+                  >
+                    Deep dive
+                  </Button>
                 </TableCell>
                 {restCols.map((col) => (
                   <TableCell
@@ -528,6 +504,99 @@ function ProspectingScreen() {
           </TableBody>
         </Table>
       </Card>
+
+      <p className="text-xs text-muted-foreground">
+        No fit score until a scenario is applied. Revenue, headcount and portfolio
+        are also available as columns.
+      </p>
+
+      {/* Add counterparty */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add counterparty</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Company</Label>
+              <Input
+                value={form.company}
+                onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+                placeholder="e.g. Rhine Energy B.V."
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Country</Label>
+                <Input
+                  value={form.country}
+                  onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                  placeholder="e.g. France"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Business line</Label>
+                <Select
+                  value={form.businessLineType}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, businessLineType: v as BusinessLineType }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUSINESS_LINES.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Gas and power markets</Label>
+                <Input
+                  value={form.markets}
+                  onChange={(e) => setForm((f) => ({ ...f, markets: e.target.value }))}
+                  placeholder="e.g. FR (PEG, high-pressure)"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Annual volume (GWh/yr)</Label>
+                <Input
+                  type="number"
+                  value={form.annualVolume || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      annualVolume: Number(e.target.value) || 0,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Revenue / EBITDA (optional)</Label>
+              <Input
+                value={form.revenueEbitda}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, revenueEbitda: e.target.value }))
+                }
+                placeholder="e.g. €900m / €95m"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitAdd}>Add to universe</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

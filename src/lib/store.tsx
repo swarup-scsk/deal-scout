@@ -12,6 +12,7 @@ import {
   fitScore,
   inheritConfig,
   scenarios as seedScenarios,
+  type BusinessLineType,
   type Config,
   type Counterparty,
   type Pillar,
@@ -39,6 +40,14 @@ interface StoreValue {
   renameScenario: (id: string, title: string) => void;
   deleteScenario: (id: string) => void;
   counterparties: Counterparty[];
+  addCounterparty: (input: {
+    company: string;
+    country: string;
+    businessLineType: BusinessLineType;
+    markets: string;
+    annualVolume: number;
+    revenueEbitda?: string;
+  }) => void;
   rankedCounterparties: (Counterparty & {
     fit: number;
     rejected: boolean;
@@ -77,6 +86,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [disabledRules, setDisabledRules] = useState<Record<string, string[]>>(
     {},
   );
+  const [counterpartyList, setCounterpartyList] =
+    useState<Counterparty[]>(seedCounterparties);
   const [hydrated, setHydrated] = useState(false);
   const [savedSnap, setSavedSnap] = useState("");
 
@@ -110,7 +121,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const rankedCounterparties = useMemo(() => {
-    return seedCounterparties
+    return counterpartyList
       .map((cp) => {
         const fit = fitScore(cp, config.weights);
         const belowTarget = cp.annualVolume < config.rules.targetVolume;
@@ -120,7 +131,61 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ...cp, fit, rejected, belowTarget, belowHurdle };
       })
       .sort((a, b) => b.fit - a.fit);
-  }, [config]);
+  }, [config, counterpartyList]);
+
+  const addCounterparty = (input: {
+    company: string;
+    country: string;
+    businessLineType: BusinessLineType;
+    markets: string;
+    annualVolume: number;
+    revenueEbitda?: string;
+  }) => {
+    const base =
+      input.company
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") || "cp";
+    const cp: Counterparty = {
+      id: `${base}-${Date.now().toString(36)}`,
+      company: input.company,
+      country: input.country,
+      legalEntityName: input.company,
+      lei: "n/a",
+      revenueEbitda: input.revenueEbitda || "n/a",
+      headcount: "n/a",
+      businessLine: input.businessLineType,
+      businessLineType: input.businessLineType,
+      markets: input.markets || "n/a",
+      portfolioSize: "n/a",
+      gasMarket: "n/a",
+      powerMarket: "n/a",
+      annualVolume: input.annualVolume || 0,
+      aiInsight: "Added manually.",
+      margin: 0,
+      sub: {
+        strategicFit: 60,
+        profitability: 60,
+        portfolioSynergy: 60,
+        complexity: 60,
+        dataAvailability: 60,
+      },
+      sector: input.businessLineType,
+      priceHub: config.scope.hub,
+      seasonalSwing: 50,
+      creditworthiness: 50,
+      contact: "n/a",
+      standing: "New (manually added)",
+      lastContact: "No prior contact",
+      evidence: [],
+      suggestion: "Hold",
+      suggestionBasis: "Manually added, not yet scored.",
+      indicativeSizing: "n/a",
+      demandProfileFit: "n/a",
+      keyRisk: "n/a",
+    };
+    setCounterpartyList((l) => [cp, ...l]);
+  };
 
   const setScenarioOverride = (id: string, partial: Partial<ScenarioConfig>) =>
     setScenarioOverrides((p) => {
@@ -216,7 +281,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addScenario,
     renameScenario,
     deleteScenario,
-    counterparties: seedCounterparties,
+    counterparties: counterpartyList,
+    addCounterparty,
     rankedCounterparties,
     decisions,
     recordDecision: (id, d) => setDecisions((p) => ({ ...p, [id]: d })),
