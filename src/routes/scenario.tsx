@@ -7,6 +7,7 @@ import {
   Plus,
   RefreshCw,
   Trash2,
+  X,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -76,6 +77,8 @@ function ConfigureScenarios() {
     resolvedScenarioConfig,
     criterionWeights,
     setCriterionWeight,
+    disabledRules,
+    toggleRuleDisabled,
     setSelectedScenarioId,
     dirty,
     saveAll,
@@ -369,26 +372,75 @@ function ConfigureScenarios() {
                           Rules (inherited from global, override here)
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                          <NumField
-                            label="Min volume (GWh/yr)"
-                            value={cfg.rules.targetVolume}
-                            onChange={(v) => setSRule(s.id, "targetVolume", v)}
-                          />
-                          <NumField
-                            label="Min margin (EUR)"
-                            value={cfg.rules.returnGate}
-                            onChange={(v) => setSRule(s.id, "returnGate", v)}
-                          />
-                          <NumField
-                            label="Strong at or above"
-                            value={cfg.thresholds.green}
-                            onChange={(v) => setSThreshold(s.id, "green", v)}
-                          />
-                          <NumField
-                            label="Borderline at or above"
-                            value={cfg.thresholds.amber}
-                            onChange={(v) => setSThreshold(s.id, "amber", v)}
-                          />
+                          {(
+                            [
+                              {
+                                key: "targetVolume",
+                                label: "Min volume (GWh/yr)",
+                                value: cfg.rules.targetVolume,
+                                set: (v: number) => setSRule(s.id, "targetVolume", v),
+                              },
+                              {
+                                key: "returnGate",
+                                label: "Min margin (EUR)",
+                                value: cfg.rules.returnGate,
+                                set: (v: number) => setSRule(s.id, "returnGate", v),
+                              },
+                              {
+                                key: "green",
+                                label: "Strong at or above",
+                                value: cfg.thresholds.green,
+                                set: (v: number) => setSThreshold(s.id, "green", v),
+                              },
+                              {
+                                key: "amber",
+                                label: "Borderline at or above",
+                                value: cfg.thresholds.amber,
+                                set: (v: number) => setSThreshold(s.id, "amber", v),
+                              },
+                            ] as const
+                          ).map((rd) => {
+                            const off = (disabledRules[s.id] ?? []).includes(rd.key);
+                            return (
+                              <div key={rd.key}>
+                                <div className="mb-1 flex items-center justify-between gap-1">
+                                  <Label className="text-xs text-muted-foreground">
+                                    {rd.label}
+                                  </Label>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleRuleDisabled(s.id, rd.key)}
+                                    className="text-muted-foreground hover:text-foreground"
+                                    aria-label={
+                                      off ? `Restore ${rd.label}` : `Remove ${rd.label}`
+                                    }
+                                  >
+                                    {off ? (
+                                      <Plus className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <X className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                                {off ? (
+                                  <div className="rounded-md border border-dashed border-border px-2 py-1.5 text-xs text-muted-foreground">
+                                    Not applied
+                                  </div>
+                                ) : (
+                                  <Input
+                                    value={String(rd.value)}
+                                    onChange={(e) =>
+                                      rd.set(
+                                        Number(
+                                          e.target.value.replace(/[^0-9.]/g, ""),
+                                        ) || 0,
+                                      )
+                                    }
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 

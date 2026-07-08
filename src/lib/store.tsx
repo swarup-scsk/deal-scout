@@ -53,6 +53,8 @@ interface StoreValue {
   resolvedScenarioConfig: (id: string) => ScenarioConfig;
   criterionWeights: Record<string, Record<string, number>>;
   setCriterionWeight: (id: string, key: string, v: number) => void;
+  disabledRules: Record<string, string[]>;
+  toggleRuleDisabled: (id: string, field: string) => void;
   dirty: boolean;
   saveAll: () => void;
 }
@@ -72,6 +74,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [criterionWeights, setCriterionWeights] = useState<
     Record<string, Record<string, number>>
   >({});
+  const [disabledRules, setDisabledRules] = useState<Record<string, string[]>>(
+    {},
+  );
   const [hydrated, setHydrated] = useState(false);
   const [savedSnap, setSavedSnap] = useState("");
 
@@ -84,6 +89,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (s.config) setConfig(s.config);
         if (s.scenarioOverrides) setScenarioOverrides(s.scenarioOverrides);
         if (s.criterionWeights) setCriterionWeights(s.criterionWeights);
+        if (s.disabledRules) setDisabledRules(s.disabledRules);
         if (s.scenarioList) setScenarioList(s.scenarioList);
         setSavedSnap(raw);
       } else {
@@ -92,6 +98,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             config: defaultConfig,
             scenarioOverrides: {},
             criterionWeights: {},
+            disabledRules: {},
             scenarioList: seedScenarios,
           }),
         );
@@ -137,9 +144,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       delete n[id];
       return n;
     });
+    setDisabledRules((p) => {
+      const n = { ...p };
+      delete n[id];
+      return n;
+    });
   };
   const setCriterionWeight = (id: string, key: string, v: number) =>
     setCriterionWeights((p) => ({ ...p, [id]: { ...(p[id] ?? {}), [key]: v } }));
+  const toggleRuleDisabled = (id: string, field: string) =>
+    setDisabledRules((p) => {
+      const cur = p[id] ?? [];
+      const next = cur.includes(field)
+        ? cur.filter((f) => f !== field)
+        : [...cur, field];
+      return { ...p, [id]: next };
+    });
   const resolvedScenarioConfig = (id: string) =>
     inheritConfig(config, scenarioOverrides[id]);
 
@@ -172,6 +192,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     config,
     scenarioOverrides,
     criterionWeights,
+    disabledRules,
     scenarioList,
   });
   const dirty = hydrated && currentSnap !== savedSnap;
@@ -205,6 +226,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     resolvedScenarioConfig,
     criterionWeights,
     setCriterionWeight,
+    disabledRules,
+    toggleRuleDisabled,
     dirty,
     saveAll,
   };
