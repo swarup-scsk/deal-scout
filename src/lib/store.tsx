@@ -64,6 +64,11 @@ interface StoreValue {
   setCriterionWeight: (id: string, key: string, v: number) => void;
   disabledRules: Record<string, string[]>;
   toggleRuleDisabled: (id: string, field: string) => void;
+  criterionDescriptions: Record<string, Record<string, string>>;
+  setCriterionDescription: (id: string, key: string, description: string) => void;
+  setScenarioDescription: (id: string, description: string) => void;
+  role: "Admin" | "User";
+  setRole: (r: "Admin" | "User") => void;
   dirty: boolean;
   saveAll: () => void;
 }
@@ -86,6 +91,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [disabledRules, setDisabledRules] = useState<Record<string, string[]>>(
     {},
   );
+  const [criterionDescriptions, setCriterionDescriptions] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const [role, setRole] = useState<"Admin" | "User">("Admin");
   const [counterpartyList, setCounterpartyList] =
     useState<Counterparty[]>(seedCounterparties);
   const [hydrated, setHydrated] = useState(false);
@@ -101,6 +110,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (s.scenarioOverrides) setScenarioOverrides(s.scenarioOverrides);
         if (s.criterionWeights) setCriterionWeights(s.criterionWeights);
         if (s.disabledRules) setDisabledRules(s.disabledRules);
+        if (s.criterionDescriptions)
+          setCriterionDescriptions(s.criterionDescriptions);
         if (s.scenarioList) setScenarioList(s.scenarioList);
         setSavedSnap(raw);
       } else {
@@ -110,6 +121,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             scenarioOverrides: {},
             criterionWeights: {},
             disabledRules: {},
+            criterionDescriptions: {},
             scenarioList: seedScenarios,
           }),
         );
@@ -214,9 +226,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       delete n[id];
       return n;
     });
+    setCriterionDescriptions((p) => {
+      const n = { ...p };
+      delete n[id];
+      return n;
+    });
   };
   const setCriterionWeight = (id: string, key: string, v: number) =>
     setCriterionWeights((p) => ({ ...p, [id]: { ...(p[id] ?? {}), [key]: v } }));
+  const setCriterionDescription = (id: string, key: string, description: string) =>
+    setCriterionDescriptions((p) => ({
+      ...p,
+      [id]: { ...(p[id] ?? {}), [key]: description },
+    }));
   const toggleRuleDisabled = (id: string, field: string) =>
     setDisabledRules((p) => {
       const cur = p[id] ?? [];
@@ -248,6 +270,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
   const renameScenario = (id: string, title: string) =>
     setScenarioList((l) => l.map((s) => (s.id === id ? { ...s, title } : s)));
+  const setScenarioDescription = (id: string, description: string) =>
+    setScenarioList((l) =>
+      l.map((s) => (s.id === id ? { ...s, description } : s)),
+    );
   const deleteScenario = (id: string) => {
     setScenarioList((l) => l.filter((s) => s.id !== id));
     clearScenarioOverride(id);
@@ -258,6 +284,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     scenarioOverrides,
     criterionWeights,
     disabledRules,
+    criterionDescriptions,
     scenarioList,
   });
   const dirty = hydrated && currentSnap !== savedSnap;
@@ -294,6 +321,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCriterionWeight,
     disabledRules,
     toggleRuleDisabled,
+    criterionDescriptions,
+    setCriterionDescription,
+    setScenarioDescription,
+    role,
+    setRole,
     dirty,
     saveAll,
   };
