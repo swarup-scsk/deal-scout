@@ -17,6 +17,11 @@
 | D9 | **LinkedIn / outreach stays agent-assisted** (drafted for a human), never fully automated. | Platform terms; also keeps a human in the loop for relationship-led origination. |
 | D10 | Canonical knowledge pack in the OneDrive hub, **mirrored** into the `deal-scout` repo; README + CLAUDE.md in `deal-scout` only. | Hub is the project home; the repo copy lets a cold git clone onboard. (Per owner decision, 2026-07-20.) |
 | D11 | Writing style: **no em dashes**; plain senior-consultant, non-journalistic language. | Owner preference; applies to all docs and outputs. |
+| D12 | Fit score shown in **column 2 only when a scenario is applied**; "Not scored" in the plain universe. | Resolves the conflict between universe-first (unscored default) and the request to move score to column 2. |
+| D13 | Keep the **Proceed / Hold / Decline** decision; **Proceed** promotes the counterparty into the micro-CRM. | Owner choice; preserves the existing audit states while giving one trigger into CRM. |
+| D14 | **Shortlists are multiple named lists** (playlist-style), not a single cart. | Owner choice; supports "add to existing or new list, new needs a name." |
+| D15 | Micro-CRM is **mocked but structured for later** real connectors; comms are draft-and-log only (nothing sent); closed-deal status set manually. | Prototype has no live plugins/email; the external deal system owns real closes. Keeps the data model ready for MVP wiring. |
+| D16 | Persistence **split into two keys**: config under manual Save-all (`deal-scout.state.v2`), operational data auto-saved (`deal-scout.ops.v1`). | Shortlist/CRM actions must persist immediately without disturbing the config dirty/Save-all UX. |
 
 ## Gotchas (traps - do not relearn these)
 
@@ -30,9 +35,10 @@
 - Commits on the connected branch **sync into the Lovable editor**, so keep the branch in a working state.
 
 ### State / persistence
-- The localStorage key is **`deal-scout.state.v2`**. When the persisted shape changes incompatibly, **bump the version** or stale saved state shadows new seed data (this happened: v1 → v2).
-- When adding persisted state, update it in **four places together**: the `useState`, the hydrate `if` block, the empty-storage else snapshot, and `currentSnap` - or the dirty check breaks or data is lost.
-- `role` and `counterpartyList` are intentionally **in-memory only** (not persisted).
+- There are now **two localStorage keys** (see DATA_CONTRACT.md). Config: **`deal-scout.state.v2`** (manual Save-all). Operational data: **`deal-scout.ops.v1`** (auto-saved via effect): counterparties, shortlists, accounts, contacts, commLogs.
+- Config key: when the shape changes incompatibly, **bump the version** or stale saved state shadows new seed data (this happened: v1 → v2). When adding a config field, update **four places together**: the `useState`, the hydrate `if` block, the empty-storage else snapshot, and `currentSnap`.
+- Ops key: when adding a slice, update **three places**: the `useState`, the ops hydrate block, and the auto-save effect (dependency array + written object).
+- `counterpartyList` is now **persisted** (under the ops key), so shortlists and CRM survive reloads. `role` and `decisions` remain in-memory only.
 
 ### Styling
 - Use **semantic token classes** only (`bg-primary`, `text-muted-foreground`, `border-border`, `brand-blue`, `success`, `warning`). `text-accent` is a very light blue and is nearly invisible as text - use `text-accent-foreground` on `bg-accent`, or `text-foreground`.

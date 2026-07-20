@@ -1,7 +1,7 @@
 # Data Contract
 
 **Last updated:** 2026-07-20
-**Why this doc:** Scout has no backend yet, but three interfaces are shared across the app and must not drift: the **core domain types**, the **localStorage persistence blob**, and the **n8n workflow contracts**. Change either side of these deliberately.
+**Why this doc:** Scout has no backend yet, but these interfaces are shared across the app and must not drift: the **core domain types**, the **two localStorage blobs**, the **shortlist and CRM types**, and the **n8n workflow contracts**. Change either side of these deliberately.
 
 All types live in `src/lib/data.ts`. State and persistence live in `src/lib/store.tsx`.
 
@@ -57,11 +57,11 @@ The prospecting row. Key fields (from the Jabbar / Michael whiteboard) include:
 `id, company, country, legalEntityName, lei, revenueEbitda, headcount, businessLine, businessLineType, markets, portfolioSize, gasMarket, powerMarket, annualVolume, aiInsight, margin, sub (per-criterion sub-scores), sector, standing, evidence[], suggestion, keyRisk`.
 Helpers: `fitScore(cp, weights)`, `fitBarClass(...)`, `fitColorClass(...)`.
 
-## 2. localStorage persistence blob (`src/lib/store.tsx`)
+## 2. Two localStorage blobs (`src/lib/store.tsx`)
 
-Single-user persistence. **Key: `deal-scout.state.v2`.** SSR-safe: hydrated after mount, saved via explicit `saveAll()`; `dirty` is a JSON-snapshot comparison.
+Persistence is split into two keys with different save models.
 
-Persisted shape (exactly these keys - keep hydrate, else-branch, and `currentSnap` in sync when adding a field, and **bump the key version** if the shape changes incompatibly):
+**A. Config blob - `deal-scout.state.v2` - manual "Save all" model.** SSR-safe: hydrated after mount, saved via explicit `saveAll()`; `dirty` is a JSON-snapshot comparison against `currentSnap`.
 
 ```json
 {
@@ -74,11 +74,41 @@ Persisted shape (exactly these keys - keep hydrate, else-branch, and `currentSna
 }
 ```
 
-**Not persisted (in-memory only):** `role` ("Admin" | "User"), `counterpartyList` (added counterparties reset on reload), `decisions`, UI open/edit state.
+When adding a field here, add it in four places together - the `useState`, the hydrate `if (s.x)` block, the empty-storage else snapshot, and `currentSnap` - or the dirty check breaks or data is lost. Bump the key version on an incompatible change.
 
-Rule of thumb when adding persisted state: add it in four places together - the `useState`, the hydrate `if (s.x)` block, the empty-storage else-branch snapshot, and `currentSnap`. Missing one breaks the dirty check or loses data.
+**B. Operational blob - `deal-scout.ops.v1` - auto-save model.** Written by an effect whenever any of its slices change (after hydration). No dirty/Save-all; changes persist immediately. Used for data users edit through actions rather than a config form.
 
-## 3. n8n workflow contracts (hub folder JSON)
+```json
+{
+  "counterparties": [ …Counterparty ],   // seed + manually added; now persisted
+  "shortlists":     [ …Shortlist ],
+  "accounts":       [ …Account ],
+  "contacts":       [ …Contact ],
+  "commLogs":       [ …CommLog ]
+}
+```
+
+When adding a slice here, add it in three places: the `useState`, the ops hydrate block, and the auto-save effect's dependency array + written object.
+
+**Still in-memory only:** `role` ("Admin" | "User"), `decisions`, UI open/edit state.
+
+## 3. Shortlist and CRM types (`src/lib/data.ts`)
+
+```
+Shortlist { id, name, counterpartyIds: string[], createdAt }
+
+Account {
+  id, counterpartyId, company,
+  status: "active" | "deal-closed",
+  createdAt, website?, enrichedAt?, notes?, dealClosedAt?, dealRef?
+}
+Contact { id, accountId, name, role, email?, phone?, linkedin?, source: "auto"|"manual"|"enriched" }
+CommLog { id, accountId, channel: "email"|"linkedin"|"note", subject?, body, timestamp }
+```
+
+Flow: **Proceed** on a deep dive calls `startCrm(counterpartyId)`, which creates one `Account` (idempotent per counterparty) plus an auto `Contact` parsed from the counterparty's known contact. `enrichAccount` is a **mock** (simulated website + ZoomInfo) that adds a website and enriched contacts; replace its body with a real connector later. `logComm` records drafted messages (nothing is actually sent; LinkedIn stays draft-for-a-human). `setAccountStatus(id, "deal-closed", ref)` records a close from the external deal system and drives the "Deal closed" flag shown in the Counterparties table.
+
+## 4. n8n workflow contracts (hub folder JSON)
 
 Designed, exported as JSON in the OneDrive hub; not yet wired into Scout. The seam Scout expects:
 

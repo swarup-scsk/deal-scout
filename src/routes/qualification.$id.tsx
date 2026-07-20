@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { ArrowRight } from "lucide-react";
 import { fitBarClass, fitColorClass } from "@/lib/data";
 import { useStore, type Decision } from "@/lib/store";
+import { AddToShortlist } from "@/components/AddToShortlist";
 
 export const Route = createFileRoute("/qualification/$id")({
   head: () => ({
@@ -47,7 +49,14 @@ function ScoreBar({
 
 function QualificationScreen() {
   const { id } = useParams({ from: "/qualification/$id" });
-  const { rankedCounterparties, config, decisions, recordDecision } = useStore();
+  const {
+    rankedCounterparties,
+    config,
+    decisions,
+    recordDecision,
+    startCrm,
+    accountForCounterparty,
+  } = useStore();
   const navigate = useNavigate();
   const cp = rankedCounterparties.find((c) => c.id === id);
 
@@ -73,6 +82,8 @@ function QualificationScreen() {
       rationale,
       timestamp: new Date().toLocaleString(),
     });
+    // Proceed promotes the counterparty into the micro-CRM.
+    if (choice === "Proceed") startCrm(cp.id);
   };
 
   const suggestionTone =
@@ -84,13 +95,16 @@ function QualificationScreen() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">
-          Qualify the counterparty
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Review the evidence and record your origination decision.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Qualify the counterparty
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Review the evidence and record your origination decision.
+          </p>
+        </div>
+        <AddToShortlist counterpartyId={cp.id} label="Add to shortlist" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
@@ -260,6 +274,25 @@ function QualificationScreen() {
                 )}
               </div>
             )}
+
+            {existing?.choice === "Proceed" &&
+              (() => {
+                const acct = accountForCounterparty(cp.id);
+                return acct ? (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() =>
+                      navigate({
+                        to: "/crm/$accountId",
+                        params: { accountId: acct.id },
+                      })
+                    }
+                  >
+                    Open CRM record <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                ) : null;
+              })()}
           </Card>
         </div>
       </div>

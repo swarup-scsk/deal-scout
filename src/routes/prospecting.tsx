@@ -50,6 +50,7 @@ import {
   type BusinessLineType,
 } from "@/lib/data";
 import { useStore } from "@/lib/store";
+import { AddToShortlist } from "@/components/AddToShortlist";
 
 export const Route = createFileRoute("/prospecting")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -77,7 +78,8 @@ const BUSINESS_LINES: BusinessLineType[] = [
 ];
 
 function UniverseScreen() {
-  const { counterparties, addCounterparty, config, scenarios } = useStore();
+  const { counterparties, addCounterparty, config, scenarios, accountForCounterparty } =
+    useStore();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [filter, setFilter] = useState("");
@@ -151,21 +153,20 @@ function UniverseScreen() {
     { key: "portfolioSize", label: "Portfolio", get: (c) => c.portfolioSize },
     { key: "markets", label: "Gas & power markets", get: (c) => c.markets },
     { key: "annualVolume", label: "Volume", get: (c) => c.annualVolume, align: "right" },
-    { key: "aiInsight", label: "AI insight", get: (c) => c.aiInsight },
-    ...(applied
-      ? [
-          {
-            key: "fit",
-            label: "Fit",
-            get: (c: Row) => c.fit,
-            align: "right" as const,
-          },
-        ]
-      : []),
   ];
+  // Company is column 1, Fit is column 2 (rendered explicitly); the rest follow.
   const restCols = columns.filter((c) => c.key !== "company");
+  const fitCol = {
+    key: "fit",
+    label: "Fit",
+    get: (c: Row) => c.fit,
+    align: "right" as const,
+  };
 
-  const getter = columns.find((c) => c.key === sortKey)?.get ?? ((c: Row) => c.company);
+  const getter =
+    sortKey === "fit"
+      ? (c: Row) => c.fit
+      : columns.find((c) => c.key === sortKey)?.get ?? ((c: Row) => c.company);
   rows = [...rows].sort((a, b) => {
     const av = getter(a);
     const bv = getter(b);
@@ -243,12 +244,21 @@ function UniverseScreen() {
   };
 
   const renderCell = (key: string, cp: Row) => {
+    const acct = accountForCounterparty(cp.id);
     switch (key) {
       case "company":
         return (
           <div>
             <div className="font-medium text-foreground">{cp.company}</div>
             <div className="mt-0.5 flex flex-wrap gap-1">
+              {acct?.status === "deal-closed" && (
+                <Badge variant="destructive" className="text-[10px]">
+                  Deal closed
+                </Badge>
+              )}
+              {acct && acct.status !== "deal-closed" && (
+                <Badge className="text-[10px]">In CRM</Badge>
+              )}
               {cp.belowVolume && (
                 <Badge variant="outline" className="text-[10px]">
                   Below volume
@@ -285,12 +295,6 @@ function UniverseScreen() {
             {cp.lei}
           </span>
         );
-      case "aiInsight":
-        return (
-          <span className="block max-w-[180px] text-muted-foreground">
-            {cp.aiInsight}
-          </span>
-        );
       case "businessLineType":
         return (
           <div>
@@ -309,6 +313,10 @@ function UniverseScreen() {
           </span>
         );
       case "fit":
+        if (!applied)
+          return (
+            <span className="text-xs text-muted-foreground">Not scored</span>
+          );
         return (
           <div className="flex items-center justify-end gap-2">
             <div className="h-1.5 w-10 overflow-hidden rounded-full bg-muted">
@@ -523,7 +531,8 @@ function UniverseScreen() {
             <TableHeader>
               <TableRow>
                 {headCell(columns[0])}
-                <TableHead>Action</TableHead>
+                {headCell(fitCol)}
+                <TableHead>Actions</TableHead>
                 {restCols.map((col) => headCell(col))}
               </TableRow>
             </TableHeader>
@@ -531,18 +540,24 @@ function UniverseScreen() {
               {rows.map((cp) => (
                 <TableRow key={cp.id}>
                   <TableCell>{renderCell("company", cp)}</TableCell>
+                  <TableCell className="text-right">
+                    {renderCell("fit", cp)}
+                  </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        navigate({
-                          to: "/qualification/$id",
-                          params: { id: cp.id },
-                        })
-                      }
-                    >
-                      Deep dive
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          navigate({
+                            to: "/qualification/$id",
+                            params: { id: cp.id },
+                          })
+                        }
+                      >
+                        Deep dive
+                      </Button>
+                      <AddToShortlist counterpartyId={cp.id} />
+                    </div>
                   </TableCell>
                   {restCols.map((col) => (
                     <TableCell

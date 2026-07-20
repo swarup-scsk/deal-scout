@@ -513,6 +513,56 @@ export const counterparties: Counterparty[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Shortlists and micro-CRM (operational data, auto-persisted under ops key).
+// ---------------------------------------------------------------------------
+
+export interface Shortlist {
+  id: string;
+  name: string;
+  counterpartyIds: string[];
+  createdAt: string;
+}
+
+export type AccountStatus = "active" | "deal-closed";
+
+export interface Account {
+  id: string;
+  counterpartyId: string;
+  company: string;
+  status: AccountStatus;
+  createdAt: string;
+  website?: string;
+  enrichedAt?: string;
+  notes?: string;
+  dealClosedAt?: string;
+  dealRef?: string;
+}
+
+export type ContactSource = "auto" | "manual" | "enriched";
+
+export interface Contact {
+  id: string;
+  accountId: string;
+  name: string;
+  role: string;
+  email?: string;
+  phone?: string;
+  linkedin?: string;
+  source: ContactSource;
+}
+
+export type CommChannel = "email" | "linkedin" | "note";
+
+export interface CommLog {
+  id: string;
+  accountId: string;
+  channel: CommChannel;
+  subject?: string;
+  body: string;
+  timestamp: string;
+}
+
 export function fitScore(cp: Counterparty, weights: Record<CriteriaKey, number>): number {
   const totalW = CRITERIA.reduce((s, c) => s + weights[c.key], 0) || 1;
   const weighted =

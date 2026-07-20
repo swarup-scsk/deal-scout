@@ -50,9 +50,13 @@ git push
 | `src/routes/prospecting.tsx` | Counterparties universe: search, apply-scenario overlay, ranked table. |
 | `src/routes/qualification.$id.tsx` | Deep dive + recorded go / no-go. |
 | `src/routes/__root.tsx`, `index.tsx` | Root layout; `/` redirects to `/scenario`. |
+| `src/routes/index.tsx` | Landing page (CTA into Counterparties). |
+| `src/routes/shortlists.tsx` | Named shortlists (playlist-style). |
+| `src/routes/crm.tsx`, `src/routes/crm.$accountId.tsx` | Micro-CRM list and account detail. |
+| `src/components/AddToShortlist.tsx` | Reusable add-to-shortlist dialog (table + deep dive). |
 | `src/lib/data.ts` | Domain types + mocked seed data (see `knowledge-pack/DATA_CONTRACT.md`). |
-| `src/lib/store.tsx` | Context store + localStorage persistence (`deal-scout.state.v2`). |
-| `src/components/AppShell.tsx` | Header / scope shell. |
+| `src/lib/store.tsx` | Context store + two localStorage blobs (`deal-scout.state.v2` config, `deal-scout.ops.v1` operational). |
+| `src/components/AppShell.tsx` | Header / nav / scope shell. |
 | `src/components/ui/*` | shadcn/ui components. |
 | `src/styles.css` | Design tokens (oklch). |
 
