@@ -2,11 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   ArrowRight,
+  Check,
   ChevronDown,
   ChevronRight,
   Pencil,
   Plus,
   RefreshCw,
+  Settings2,
   Trash2,
   X,
 } from "lucide-react";
@@ -21,19 +23,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PILLARS, type Config } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
@@ -63,14 +57,33 @@ function NumField({
 }) {
   return (
     <div>
-      <Label className="mb-1 block text-xs text-muted-foreground">{label}</Label>
+      <Label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </Label>
       <Input
         value={String(value)}
         readOnly={disabled}
+        className={disabled ? "bg-muted/40" : ""}
         onChange={(e) =>
           onChange(Number(e.target.value.replace(/[^0-9.]/g, "")) || 0)
         }
       />
+    </div>
+  );
+}
+
+// Read-only importance indicator (1-5 dots).
+function WeightDots({ value }: { value: number }) {
+  return (
+    <div className="flex items-center gap-1" aria-label={`Importance ${value} of 5`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span
+          key={n}
+          className={`h-1.5 w-1.5 rounded-full ${
+            n <= value ? "bg-brand-blue" : "bg-border"
+          }`}
+        />
+      ))}
     </div>
   );
 }
@@ -137,49 +150,63 @@ function ConfigureScenarios() {
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-6">
+      {/* Page header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Configure scenarios
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {isAdmin
               ? "Set the criteria for each transaction type. Criteria drive ranking and act as search filters."
-              : "Read-only. Switch to Admin to make changes."}
+              : "Read-only view. Switch to Admin to make changes."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Viewing as</span>
-          <Select value={role} onValueChange={(v) => setRole(v as "Admin" | "User")}>
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Admin">Admin</SelectItem>
-              <SelectItem value="User">User</SelectItem>
-            </SelectContent>
-          </Select>
-          {isAdmin && (
-            <Button onClick={saveAll} disabled={!dirty}>
-              {dirty ? "Save all" : "All changes saved"}
-            </Button>
-          )}
+        <div className="flex items-center gap-3">
+          {/* Role segmented control */}
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Viewing as
+            </span>
+            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
+              {(["Admin", "User"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                    role === r
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+          {isAdmin &&
+            (dirty ? (
+              <Button onClick={saveAll}>Save all</Button>
+            ) : (
+              <span className="flex items-center gap-1.5 self-end rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">
+                <Check className="h-3.5 w-3.5" /> All changes saved
+              </span>
+            ))}
         </div>
       </div>
 
       {/* Global configuration (collapsed) */}
-      <Card className="p-0">
+      <Card className="overflow-hidden p-0">
         <button
-          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40"
           onClick={() => setGlobalOpen((v) => !v)}
         >
-          <span className="flex items-center gap-2">
-            {globalOpen ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <Settings2 className="h-4 w-4" />
+            </span>
             <span>
               <span className="block text-sm font-semibold text-foreground">
                 Global configuration
@@ -189,14 +216,22 @@ function ConfigureScenarios() {
               </span>
             </span>
           </span>
-          <span className="text-xs text-muted-foreground">
-            {config.scope.commodity} · {config.scope.region} · {config.scope.hub}
+          <span className="flex items-center gap-3">
+            <span className="hidden rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground sm:inline">
+              {config.scope.commodity} · {config.scope.region} ·{" "}
+              {config.scope.hub}
+            </span>
+            {globalOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
           </span>
         </button>
         {globalOpen && (
-          <div className="space-y-4 border-t border-border px-4 py-4">
+          <div className="space-y-5 border-t border-border bg-muted/20 px-4 py-4">
             <div>
-              <div className="mb-2 text-xs font-semibold text-muted-foreground">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Rules
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -227,55 +262,34 @@ function ConfigureScenarios() {
               </div>
             </div>
             <div>
-              <div className="mb-2 text-xs font-semibold text-muted-foreground">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Market scope
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="mb-1 block text-xs text-muted-foreground">
-                    Commodity
-                  </Label>
-                  <Input
-                    value={config.scope.commodity}
-                    readOnly={!isAdmin}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        scope: { ...config.scope, commodity: e.target.value },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label className="mb-1 block text-xs text-muted-foreground">
-                    Region
-                  </Label>
-                  <Input
-                    value={config.scope.region}
-                    readOnly={!isAdmin}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        scope: { ...config.scope, region: e.target.value },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label className="mb-1 block text-xs text-muted-foreground">
-                    Hub
-                  </Label>
-                  <Input
-                    value={config.scope.hub}
-                    readOnly={!isAdmin}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        scope: { ...config.scope, hub: e.target.value },
-                      })
-                    }
-                  />
-                </div>
+                {(
+                  [
+                    { key: "commodity", label: "Commodity" },
+                    { key: "region", label: "Region" },
+                    { key: "hub", label: "Hub" },
+                  ] as const
+                ).map((f) => (
+                  <div key={f.key}>
+                    <Label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {f.label}
+                    </Label>
+                    <Input
+                      value={config.scope[f.key]}
+                      readOnly={!isAdmin}
+                      className={!isAdmin ? "bg-muted/40" : ""}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          scope: { ...config.scope, [f.key]: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -283,28 +297,33 @@ function ConfigureScenarios() {
       </Card>
 
       {/* Pillars and their scenarios */}
-      {PILLARS.map((pillar) => (
-        <div key={pillar.id} className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-accent">
-              {pillar.label}
-            </span>
-            {isAdmin && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setOpenId(addScenario(pillar.id, "New transaction type"))
-                }
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add transaction type
-              </Button>
-            )}
-          </div>
+      {PILLARS.map((pillar) => {
+        const list = scenarios.filter((s) => s.pillar === pillar.id);
+        return (
+          <div key={pillar.id} className="space-y-3">
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                  {pillar.label}
+                </span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {list.length}
+                </span>
+              </div>
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setOpenId(addScenario(pillar.id, "New transaction type"))
+                  }
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Add transaction type
+                </Button>
+              )}
+            </div>
 
-          {scenarios
-            .filter((s) => s.pillar === pillar.id)
-            .map((s) => {
+            {list.map((s) => {
               const isOpen = openId === s.id;
               const editing = isAdmin && editingId === s.id;
               const cfg = resolvedScenarioConfig(s.id);
@@ -312,39 +331,52 @@ function ConfigureScenarios() {
               return (
                 <Card
                   key={s.id}
-                  className={`p-0 ${isOpen ? "border-primary/40" : ""}`}
+                  className={`overflow-hidden p-0 transition-all ${
+                    isOpen
+                      ? "border-brand-blue/40 shadow-sm ring-1 ring-brand-blue/20"
+                      : "hover:border-brand-blue/30 hover:shadow-sm"
+                  }`}
                 >
                   <div
-                    className={`flex items-center justify-between gap-2 px-4 py-3 ${
-                      isOpen ? "bg-primary/5" : ""
+                    className={`flex items-center justify-between gap-2 px-4 py-3 transition-colors ${
+                      isOpen ? "bg-brand-blue/5" : ""
                     }`}
                   >
                     <button
-                      className="flex flex-1 items-center gap-2 text-left"
+                      className="flex flex-1 items-center gap-2.5 text-left"
                       onClick={() => setOpenId(isOpen ? null : s.id)}
                     >
                       {isOpen ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        <ChevronDown className="h-4 w-4 shrink-0 text-brand-blue" />
                       ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="text-sm font-semibold text-foreground">
                         {s.title}
                       </span>
-                      {s.testCase && <Badge>Test case</Badge>}
-                      <Badge variant={custom ? "default" : "secondary"}>
+                      {s.testCase && (
+                        <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-foreground">
+                          Test case
+                        </span>
+                      )}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          custom
+                            ? "bg-brand-blue/10 text-brand-blue"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
                         {custom ? "Customised" : `${s.spec.length} criteria`}
-                      </Badge>
+                      </span>
                     </button>
                     <div className="flex items-center gap-2">
                       {isAdmin &&
                         (editing ? (
                           <Button
                             size="sm"
-                            variant="secondary"
                             onClick={() => setEditingId(null)}
                           >
-                            Done
+                            <Check className="mr-1.5 h-4 w-4" /> Done
                           </Button>
                         ) : (
                           <Button
@@ -355,31 +387,37 @@ function ConfigureScenarios() {
                               setEditingId(s.id);
                             }}
                           >
-                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                            <Pencil className="mr-1.5 h-4 w-4" /> Edit
                           </Button>
                         ))}
-                      <Button size="sm" variant="ghost" onClick={() => open(s.id)}>
-                        Open <ArrowRight className="ml-2 h-4 w-4" />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => open(s.id)}
+                      >
+                        Open <ArrowRight className="ml-1.5 h-4 w-4" />
                       </Button>
                     </div>
                   </div>
 
                   {isOpen && (
-                    <div className="space-y-4 border-t border-border px-4 py-4">
+                    <div className="space-y-5 border-t border-border px-4 py-4">
                       {editing && (
                         <div>
-                          <Label className="mb-1 block text-xs text-muted-foreground">
+                          <Label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                             Transaction type name
                           </Label>
                           <Input
                             value={s.title}
-                            onChange={(e) => renameScenario(s.id, e.target.value)}
+                            onChange={(e) =>
+                              renameScenario(s.id, e.target.value)
+                            }
                           />
                         </div>
                       )}
 
                       <div>
-                        <div className="mb-1 text-xs font-semibold text-muted-foreground">
+                        <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Description
                         </div>
                         {editing ? (
@@ -392,52 +430,54 @@ function ConfigureScenarios() {
                             }
                           />
                         ) : (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm leading-relaxed text-muted-foreground">
                             {s.description || "No description yet."}
                           </p>
                         )}
                       </div>
 
-                      <div>
-                        <div className="flex items-center gap-3 border-b border-border pb-1">
-                          <span className="flex-1 text-xs font-semibold text-muted-foreground">
+                      {/* Criteria + weightage */}
+                      <div className="overflow-hidden rounded-lg border border-border">
+                        <div className="flex items-center gap-3 border-b border-border bg-muted/40 px-3 py-2">
+                          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Criteria
                           </span>
-                          <span className="w-[150px] text-xs font-semibold text-muted-foreground">
+                          <span className="w-[160px] text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Weightage
                           </span>
-                          <span className="w-4" />
                         </div>
                         {s.spec.length === 0 && (
-                          <p className="py-2 text-sm text-muted-foreground">
+                          <p className="px-3 py-3 text-sm text-muted-foreground">
                             No criteria defined yet.
                           </p>
                         )}
                         {s.spec.map((crit) => {
                           const desc =
-                            criterionDescriptions[s.id]?.[crit.key] ?? crit.metric;
+                            criterionDescriptions[s.id]?.[crit.key] ??
+                            crit.metric;
+                          const w = getWeight(s.id, crit.key);
                           return (
                             <div
                               key={crit.key}
-                              className="flex items-start gap-3 border-b border-border py-2 last:border-b-0"
+                              className="flex items-start gap-3 border-b border-border px-3 py-2.5 last:border-b-0 hover:bg-muted/20"
                             >
                               <div className="flex-1">
-                                <div className="text-sm text-foreground">
+                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                                   {crit.label}
                                   {crit.inverse && (
-                                    <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
+                                    <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-medium text-warning">
                                       inverse
                                     </span>
                                   )}
                                   {crit.optional && (
-                                    <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                                       optional
                                     </span>
                                   )}
                                 </div>
                                 {editing ? (
                                   <Input
-                                    className="mt-1 h-8 text-xs"
+                                    className="mt-1.5 h-8 text-xs"
                                     value={desc}
                                     onChange={(e) =>
                                       setCriterionDescription(
@@ -448,34 +488,44 @@ function ConfigureScenarios() {
                                     }
                                   />
                                 ) : (
-                                  <div className="text-[11px] text-muted-foreground">
+                                  <div className="mt-0.5 text-xs text-muted-foreground">
                                     {desc}
                                   </div>
                                 )}
                               </div>
-                              <div className="w-[150px] pt-1">
-                                <Slider
-                                  min={1}
-                                  max={5}
-                                  step={1}
-                                  disabled={!editing}
-                                  value={[getWeight(s.id, crit.key)]}
-                                  onValueChange={(v) =>
-                                    setCriterionWeight(s.id, crit.key, v[0])
-                                  }
-                                />
+                              <div className="flex w-[160px] items-center gap-3 pt-0.5">
+                                {editing ? (
+                                  <Slider
+                                    min={1}
+                                    max={5}
+                                    step={1}
+                                    className="flex-1"
+                                    value={[w]}
+                                    onValueChange={(v) =>
+                                      setCriterionWeight(s.id, crit.key, v[0])
+                                    }
+                                  />
+                                ) : (
+                                  <div className="flex-1">
+                                    <WeightDots value={w} />
+                                  </div>
+                                )}
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-semibold text-foreground">
+                                  {w}
+                                </span>
                               </div>
-                              <span className="w-4 pt-1 text-right text-sm font-medium">
-                                {getWeight(s.id, crit.key)}
-                              </span>
                             </div>
                           );
                         })}
                       </div>
 
+                      {/* Rules */}
                       <div>
-                        <div className="mb-2 text-xs font-semibold text-muted-foreground">
-                          Rules (inherited from global, override here)
+                        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Rules{" "}
+                          <span className="font-normal normal-case tracking-normal text-muted-foreground/70">
+                            (inherited from global, override here)
+                          </span>
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                           {(
@@ -484,42 +534,52 @@ function ConfigureScenarios() {
                                 key: "targetVolume",
                                 label: "Min volume (GWh/yr)",
                                 value: cfg.rules.targetVolume,
-                                set: (v: number) => setSRule(s.id, "targetVolume", v),
+                                set: (v: number) =>
+                                  setSRule(s.id, "targetVolume", v),
                               },
                               {
                                 key: "returnGate",
                                 label: "Min margin (EUR)",
                                 value: cfg.rules.returnGate,
-                                set: (v: number) => setSRule(s.id, "returnGate", v),
+                                set: (v: number) =>
+                                  setSRule(s.id, "returnGate", v),
                               },
                               {
                                 key: "green",
                                 label: "Strong at or above",
                                 value: cfg.thresholds.green,
-                                set: (v: number) => setSThreshold(s.id, "green", v),
+                                set: (v: number) =>
+                                  setSThreshold(s.id, "green", v),
                               },
                               {
                                 key: "amber",
                                 label: "Borderline at or above",
                                 value: cfg.thresholds.amber,
-                                set: (v: number) => setSThreshold(s.id, "amber", v),
+                                set: (v: number) =>
+                                  setSThreshold(s.id, "amber", v),
                               },
                             ] as const
                           ).map((rd) => {
-                            const off = (disabledRules[s.id] ?? []).includes(rd.key);
+                            const off = (disabledRules[s.id] ?? []).includes(
+                              rd.key,
+                            );
                             return (
                               <div key={rd.key}>
-                                <div className="mb-1 flex items-center justify-between gap-1">
-                                  <Label className="text-xs text-muted-foreground">
+                                <div className="mb-1.5 flex items-center justify-between gap-1">
+                                  <Label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                                     {rd.label}
                                   </Label>
                                   {editing && (
                                     <button
                                       type="button"
-                                      onClick={() => toggleRuleDisabled(s.id, rd.key)}
-                                      className="text-muted-foreground hover:text-foreground"
+                                      onClick={() =>
+                                        toggleRuleDisabled(s.id, rd.key)
+                                      }
+                                      className="text-muted-foreground transition-colors hover:text-foreground"
                                       aria-label={
-                                        off ? `Restore ${rd.label}` : `Remove ${rd.label}`
+                                        off
+                                          ? `Restore ${rd.label}`
+                                          : `Remove ${rd.label}`
                                       }
                                     >
                                       {off ? (
@@ -538,10 +598,14 @@ function ConfigureScenarios() {
                                   <Input
                                     value={String(rd.value)}
                                     readOnly={!editing}
+                                    className={!editing ? "bg-muted/40" : ""}
                                     onChange={(e) =>
                                       rd.set(
                                         Number(
-                                          e.target.value.replace(/[^0-9.]/g, ""),
+                                          e.target.value.replace(
+                                            /[^0-9.]/g,
+                                            "",
+                                          ),
                                         ) || 0,
                                       )
                                     }
@@ -582,8 +646,9 @@ function ConfigureScenarios() {
                 </Card>
               );
             })}
-        </div>
-      ))}
+          </div>
+        );
+      })}
 
       <AlertDialog
         open={deleteId !== null}
@@ -593,8 +658,8 @@ function ConfigureScenarios() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete transaction type?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the transaction type and its saved configuration. Save
-              all to persist the change. This cannot be undone.
+              This removes the transaction type and its saved configuration.
+              Save all to persist the change. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
