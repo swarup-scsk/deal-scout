@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  commTemplates as seedTemplates,
   counterparties as seedCounterparties,
   defaultConfig,
   fitScore,
@@ -17,6 +18,7 @@ import {
   type BusinessLineType,
   type CommChannel,
   type CommLog,
+  type CommTemplate,
   type Config,
   type Contact,
   type ContactSource,
@@ -101,6 +103,12 @@ interface StoreValue {
   dirty: boolean;
   saveAll: () => void;
 
+  // Communication templates (content-admin authored; config data).
+  commTemplates: CommTemplate[];
+  addTemplate: (t: Omit<CommTemplate, "id">) => string;
+  updateTemplate: (id: string, patch: Partial<Omit<CommTemplate, "id">>) => void;
+  deleteTemplate: (id: string) => void;
+
   // Shortlists (playlist-style named lists).
   shortlists: Shortlist[];
   createShortlist: (name: string, firstCounterpartyId?: string) => string;
@@ -161,6 +169,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     Record<string, Record<string, string>>
   >({});
   const [role, setRole] = useState<"Admin" | "User">("Admin");
+  const [commTemplateList, setCommTemplateList] =
+    useState<CommTemplate[]>(seedTemplates);
   const [counterpartyList, setCounterpartyList] =
     useState<Counterparty[]>(seedCounterparties);
   const [shortlists, setShortlists] = useState<Shortlist[]>([]);
@@ -183,6 +193,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (s.criterionDescriptions)
           setCriterionDescriptions(s.criterionDescriptions);
         if (s.scenarioList) setScenarioList(s.scenarioList);
+        if (s.commTemplates) setCommTemplateList(s.commTemplates);
         setSavedSnap(raw);
       } else {
         setSavedSnap(
@@ -193,6 +204,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             disabledRules: {},
             criterionDescriptions: {},
             scenarioList: seedScenarios,
+            commTemplates: seedTemplates,
           }),
         );
       }
@@ -377,6 +389,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setScenarioList((l) => l.filter((s) => s.id !== id));
     clearScenarioOverride(id);
   };
+
+  // --- Communication templates -------------------------------------------
+  const addTemplate = (t: Omit<CommTemplate, "id">) => {
+    const id = uid("tpl");
+    setCommTemplateList((l) => [{ id, ...t }, ...l]);
+    return id;
+  };
+  const updateTemplate = (
+    id: string,
+    patch: Partial<Omit<CommTemplate, "id">>,
+  ) =>
+    setCommTemplateList((l) =>
+      l.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+    );
+  const deleteTemplate = (id: string) =>
+    setCommTemplateList((l) => l.filter((t) => t.id !== id));
 
   // --- Shortlists ---------------------------------------------------------
   const createShortlist = (name: string, firstCounterpartyId?: string) => {
@@ -564,6 +592,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     disabledRules,
     criterionDescriptions,
     scenarioList,
+    commTemplates: commTemplateList,
   });
   const dirty = hydrated && currentSnap !== savedSnap;
   const saveAll = () => {
@@ -606,6 +635,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setRole,
     dirty,
     saveAll,
+    commTemplates: commTemplateList,
+    addTemplate,
+    updateTemplate,
+    deleteTemplate,
     shortlists,
     createShortlist,
     renameShortlist,

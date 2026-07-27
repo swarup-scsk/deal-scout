@@ -32,7 +32,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useStore } from "@/lib/store";
-import type { CommChannel, Contact } from "@/lib/data";
+import {
+  commTemplateVars,
+  renderTemplate,
+  type CommChannel,
+  type Contact,
+} from "@/lib/data";
 
 export const Route = createFileRoute("/crm/$accountId")({
   head: () => ({
@@ -44,36 +49,13 @@ export const Route = createFileRoute("/crm/$accountId")({
   component: CrmDetail,
 });
 
-function emailTemplate(
-  company: string,
-  contactName: string,
-  scope: { commodity: string; region: string; hub: string },
-) {
-  const first = contactName.split(" ")[0] || "there";
-  return {
-    subject: `SEE Origination — ${scope.commodity} opportunity for ${company}`,
-    body: `Hi ${first},
-
-I lead origination at SEE. We work with ${scope.region} counterparties on ${scope.commodity} structures around ${scope.hub}, and ${company} looks like a strong fit for what we are building.
-
-Would you be open to a short call to explore whether there is a basis to work together?
-
-Best regards,
-SEE Origination`,
-  };
-}
-
-function linkedinTemplate(company: string, contactName: string) {
-  const first = contactName.split(" ")[0] || "there";
-  return `Hi ${first}, I lead origination at SEE. We are active with counterparties like ${company} on structured energy deals and I would value a quick conversation. Open to connecting?`;
-}
-
 function CrmDetail() {
   const { accountId } = useParams({ from: "/crm/$accountId" });
   const {
     accounts,
     contacts,
     commLogs,
+    commTemplates,
     config,
     addContact,
     enrichAccount,
@@ -88,8 +70,11 @@ function CrmDetail() {
 
   const [channel, setChannel] = useState<CommChannel>("email");
   const [contactId, setContactId] = useState<string>("");
+  const [templateId, setTemplateId] = useState<string>("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+
+  const channelTemplates = commTemplates.filter((t) => t.channel === channel);
   const [toast, setToast] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
@@ -105,23 +90,33 @@ function CrmDetail() {
   const selectedContact: Contact | undefined =
     accountContacts.find((c) => c.id === contactId) ?? accountContacts[0];
 
-  // Autofill the template whenever channel or selected contact changes.
+  // Default to the universal template for the channel when the channel changes.
+  useEffect(() => {
+    const list = commTemplates.filter((t) => t.channel === channel);
+    const universal = list.find((t) => !t.scenarioId) ?? list[0];
+    setTemplateId(universal?.id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel]);
+
+  // Fill subject/body from the selected template + contact/scope variables.
   useEffect(() => {
     if (!account) return;
-    const name = selectedContact?.name ?? "there";
-    if (channel === "email") {
-      const t = emailTemplate(account.company, name, config.scope);
-      setSubject(t.subject);
-      setBody(t.body);
-    } else if (channel === "linkedin") {
+    const tpl = commTemplates.find((t) => t.id === templateId);
+    if (!tpl) {
       setSubject("");
-      setBody(linkedinTemplate(account.company, name));
-    } else {
-      setSubject("");
-      setBody("");
+      if (channel === "note") setBody("");
+      return;
     }
+    const vars = commTemplateVars({
+      company: account.company,
+      contactName: selectedContact?.name,
+      contactRole: selectedContact?.role,
+      scope: config.scope,
+    });
+    setSubject(tpl.subject ? renderTemplate(tpl.subject, vars) : "");
+    setBody(renderTemplate(tpl.body, vars));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel, contactId, account?.id]);
+  }, [templateId, contactId, account?.id]);
 
   if (!account) {
     return (
@@ -314,6 +309,21 @@ function CrmDetail() {
                   {accountContacts.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {channel !== "note" && channelTemplates.length > 0 && (
+              <Select value={templateId} onValueChange={setTemplateId}>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder="Template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {channelTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                      {t.scenarioId ? " (scenario)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

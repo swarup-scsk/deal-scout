@@ -70,7 +70,8 @@ Persistence is split into two keys with different save models.
   "criterionWeights":      { [scenarioId]: { [criterionKey]: number } },
   "disabledRules":         { [scenarioId]: string[] },
   "criterionDescriptions": { [scenarioId]: { [criterionKey]: string } },
-  "scenarioList":          [ …Scenario ]
+  "scenarioList":          [ …Scenario ],
+  "commTemplates":         [ …CommTemplate ]
 }
 ```
 
@@ -104,7 +105,11 @@ Account {
 }
 Contact { id, accountId, name, role, email?, phone?, linkedin?, source: "auto"|"manual"|"enriched" }
 CommLog { id, accountId, channel: "email"|"linkedin"|"note", subject?, body, timestamp }
+
+CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob; scenarioId undefined = universal
 ```
+
+Templates are content-admin authored (Admin role) and live in the **config blob** (Save-all). A template with no `scenarioId` is universal; one with a `scenarioId` overrides the universal for that channel + scenario. `renderTemplate(text, vars)` substitutes `{{token}}` values from `commTemplateVars(...)` (contact + account + scope); unknown tokens render as `[token]`. The CRM comms panel defaults to the universal template for the channel and lets the user pick a variant and edit before logging.
 
 Flow: **Proceed** on a deep dive calls `startCrm(counterpartyId)`, which creates one `Account` (idempotent per counterparty) plus an auto `Contact` parsed from the counterparty's known contact. `enrichAccount` is a **mock** (simulated website + ZoomInfo) that adds a website and enriched contacts; replace its body with a real connector later. `logComm` records drafted messages (nothing is actually sent; LinkedIn stays draft-for-a-human). `setAccountStatus(id, "deal-closed", ref)` records a close from the external deal system and drives the "Deal closed" flag shown in the Counterparties table.
 

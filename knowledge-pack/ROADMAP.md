@@ -17,6 +17,8 @@
 - Shortlists: multiple named lists (playlist-style) at `/shortlists`; add from the table and the deep dive via a reusable dialog; open a member to deep dive.
 - Micro-CRM (mocked, structured for later): **Proceed** on a deep dive starts an account; `/crm` list and `/crm/:accountId` detail with auto + manual contacts, mock AI/plugin enrichment, Outlook/LinkedIn templated comms with a communication log, and a manual "deal closed" status that flags the counterparty back in the Counterparties table.
 - Operational data now auto-persists under `deal-scout.ops.v1` (counterparties, shortlists, accounts, contacts, commLogs).
+- CRM routing fix: `/crm` is a layout with `<Outlet/>`; list in `crm.index.tsx`, detail in `crm.$accountId.tsx`.
+- Communication templates module: `/templates` admin screen (Admin authors per channel, universal or per-scenario override); CRM comms panel pulls templates, merges `{{variables}}`, defaults to universal, editable before logging. Templates persist in the config blob.
 
 ## Now (current prototype hardening)
 

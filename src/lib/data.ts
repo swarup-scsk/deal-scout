@@ -563,6 +563,81 @@ export interface CommLog {
   timestamp: string;
 }
 
+// ---------------------------------------------------------------------------
+// Communication templates (content-admin authored; config data).
+// A template with no scenarioId is universal; one with a scenarioId overrides
+// the universal for that scenario + channel.
+// ---------------------------------------------------------------------------
+
+export interface CommTemplate {
+  id: string;
+  channel: CommChannel;
+  name: string;
+  subject?: string; // email only
+  body: string; // supports {{variables}}
+  scenarioId?: string; // undefined = universal
+}
+
+// Tokens an admin can use; shown as help on the templates screen.
+export const TEMPLATE_VARIABLES: { token: string; label: string }[] = [
+  { token: "{{contact.firstName}}", label: "Contact first name" },
+  { token: "{{contact.name}}", label: "Contact full name" },
+  { token: "{{contact.role}}", label: "Contact role" },
+  { token: "{{account.company}}", label: "Company name" },
+  { token: "{{scope.commodity}}", label: "Commodity" },
+  { token: "{{scope.region}}", label: "Region" },
+  { token: "{{scope.hub}}", label: "Hub" },
+];
+
+// Replace {{token}} occurrences; unknown tokens render as [token] so gaps show.
+export function renderTemplate(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, k: string) =>
+    vars[k] !== undefined && vars[k] !== "" ? vars[k] : `[${k}]`,
+  );
+}
+
+export function commTemplateVars(opts: {
+  company: string;
+  contactName?: string;
+  contactRole?: string;
+  scope: { commodity: string; region: string; hub: string };
+}): Record<string, string> {
+  const name = opts.contactName ?? "there";
+  return {
+    "contact.name": name,
+    "contact.firstName": name.split(" ")[0] || "there",
+    "contact.role": opts.contactRole ?? "",
+    "account.company": opts.company,
+    "scope.commodity": opts.scope.commodity,
+    "scope.region": opts.scope.region,
+    "scope.hub": opts.scope.hub,
+  };
+}
+
+export const commTemplates: CommTemplate[] = [
+  {
+    id: "tpl-email-intro",
+    channel: "email",
+    name: "Cold intro",
+    subject:
+      "SEE Origination — {{scope.commodity}} opportunity for {{account.company}}",
+    body: `Hi {{contact.firstName}},
+
+I lead origination at SEE. We work with {{scope.region}} counterparties on {{scope.commodity}} structures around {{scope.hub}}, and {{account.company}} looks like a strong fit for what we are building.
+
+Would you be open to a short call to explore whether there is a basis to work together?
+
+Best regards,
+SEE Origination`,
+  },
+  {
+    id: "tpl-li-intro",
+    channel: "linkedin",
+    name: "Cold intro",
+    body: `Hi {{contact.firstName}}, I lead origination at SEE. We are active with counterparties like {{account.company}} on structured energy deals and I would value a quick conversation. Open to connecting?`,
+  },
+];
+
 export function fitScore(cp: Counterparty, weights: Record<CriteriaKey, number>): number {
   const totalW = CRITERIA.reduce((s, c) => s + weights[c.key], 0) || 1;
   const weighted =

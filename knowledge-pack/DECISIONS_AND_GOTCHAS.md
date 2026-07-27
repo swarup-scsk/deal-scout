@@ -22,6 +22,7 @@
 | D14 | **Shortlists are multiple named lists** (playlist-style), not a single cart. | Owner choice; supports "add to existing or new list, new needs a name." |
 | D15 | Micro-CRM is **mocked but structured for later** real connectors; comms are draft-and-log only (nothing sent); closed-deal status set manually. | Prototype has no live plugins/email; the external deal system owns real closes. Keeps the data model ready for MVP wiring. |
 | D16 | Persistence **split into two keys**: config under manual Save-all (`deal-scout.state.v2`), operational data auto-saved (`deal-scout.ops.v1`). | Shortlist/CRM actions must persist immediately without disturbing the config dirty/Save-all UX. |
+| D17 | Comm templates: **Admin role authors** them (no separate Content Admin role); a **new `/templates` nav screen**; universal plus per-scenario override; **CRM defaults to universal** (user can switch variant). Stored in the config blob. | Owner choices; reuse existing role and Save-all model, keep the module small. |
 
 ## Gotchas (traps - do not relearn these)
 
