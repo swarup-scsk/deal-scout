@@ -30,6 +30,9 @@
 - **Package manager is bun**, not npm/yarn. Use `bun install` / `bun run <script>`.
 - The sandbox used for edits **cannot compile or push** this app (no bun; no push creds). Workflow: the agent edits files, then the **owner runs `git pull / add / commit / push`**, and Lovable builds. Always hand off with the exact push commands.
 
+### Routing (TanStack)
+- A file like `crm.$accountId.tsx` becomes a **child** of `crm.tsx`, so `crm.tsx` MUST render an `<Outlet/>` or the child never shows (symptom: clicking through does nothing, you stay on the parent). Pattern used: `crm.tsx` is a thin layout that renders only `<Outlet/>`; the list lives in `crm.index.tsx` (`/crm/`), the detail in `crm.$accountId.tsx` (`/crm/$accountId`).
+
 ### Lovable / git
 - **Never force-push or rewrite published history** (no rebase/amend/squash of pushed commits). It corrupts history on Lovable's side and can lose project history. See `AGENTS.md` in the repo.
 - Commits on the connected branch **sync into the Lovable editor**, so keep the branch in a working state.
