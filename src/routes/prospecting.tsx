@@ -146,7 +146,6 @@ function UniverseScreen() {
     { key: "company", label: "Company", get: (c) => c.company },
     { key: "country", label: "Country", get: (c) => c.country },
     { key: "legalEntityName", label: "Legal entity", get: (c) => c.legalEntityName },
-    { key: "lei", label: "LEI", get: (c) => c.lei },
     { key: "revenueEbitda", label: "Revenue / EBITDA", get: (c) => c.revenueEbitda },
     { key: "headcount", label: "Headcount", get: (c) => c.headcount },
     { key: "businessLineType", label: "Business line", get: (c) => c.businessLineType },

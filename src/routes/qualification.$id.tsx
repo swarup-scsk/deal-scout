@@ -56,9 +56,14 @@ function QualificationScreen() {
     recordDecision,
     startCrm,
     accountForCounterparty,
+    shortlists,
   } = useStore();
   const navigate = useNavigate();
   const cp = rankedCounterparties.find((c) => c.id === id);
+  const account = cp ? accountForCounterparty(cp.id) : undefined;
+  const memberOfLists = cp
+    ? shortlists.filter((s) => s.counterpartyIds.includes(cp.id))
+    : [];
 
   const [choice, setChoice] = useState<Decision["choice"] | null>(null);
   const [rationale, setRationale] = useState("");
@@ -107,6 +112,39 @@ function QualificationScreen() {
         <AddToShortlist counterpartyId={cp.id} label="Add to shortlist" />
       </div>
 
+      {(account || memberOfLists.length > 0 || existing) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+          {existing && (
+            <Badge variant="secondary">Decision: {existing.choice}</Badge>
+          )}
+          {account &&
+            (account.status === "deal-closed" ? (
+              <Badge variant="destructive">Deal closed</Badge>
+            ) : (
+              <Badge>In CRM</Badge>
+            ))}
+          {account && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                navigate({
+                  to: "/crm/$accountId",
+                  params: { accountId: account.id },
+                })
+              }
+            >
+              Open CRM record <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          )}
+          {memberOfLists.length > 0 && (
+            <span className="text-muted-foreground">
+              In shortlist: {memberOfLists.map((s) => s.name).join(", ")}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         {/* LEFT */}
         <div className="space-y-6">
@@ -151,6 +189,22 @@ function QualificationScreen() {
                 value={cp.fit}
                 thresholds={config.thresholds}
               />
+            </div>
+          </Card>
+
+          <Card className="space-y-3 p-5">
+            <h3 className="font-semibold text-foreground">Company profile</h3>
+            <div className="grid gap-2 text-sm sm:grid-cols-2">
+              <Row label="Legal entity" value={cp.legalEntityName} />
+              <Row label="LEI" value={cp.lei} />
+              <Row label="Revenue / EBITDA" value={cp.revenueEbitda} />
+              <Row label="Headcount" value={cp.headcount} />
+              <Row label="Business line" value={cp.businessLineType} />
+              <Row label="Sector" value={cp.businessLine} />
+              <Row label="Portfolio size" value={cp.portfolioSize} />
+              <Row label="Gas & power markets" value={cp.markets} />
+              <Row label="Gas market" value={cp.gasMarket} />
+              <Row label="Power market" value={cp.powerMarket} />
             </div>
           </Card>
 
@@ -302,16 +356,31 @@ function QualificationScreen() {
           variant="outline"
           onClick={() => navigate({ to: "/prospecting" })}
         >
-          Back to prospecting
+          Back to counterparties
         </Button>
-        <Button
-          onClick={() => {
-            record();
-            navigate({ to: "/prospecting" });
-          }}
-        >
-          Record &amp; return to shortlist
-        </Button>
+        <div className="flex gap-2">
+          {memberOfLists.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: "/shortlists" })}
+            >
+              Back to shortlists
+            </Button>
+          )}
+          <Button
+            disabled={!choice && !existing}
+            onClick={() => {
+              if (choice) record();
+              navigate(
+                memberOfLists.length > 0
+                  ? { to: "/shortlists" }
+                  : { to: "/prospecting" },
+              );
+            }}
+          >
+            {choice ? "Record and return" : "Return"}
+          </Button>
+        </div>
       </div>
     </div>
   );
