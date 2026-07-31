@@ -72,7 +72,8 @@ Persistence is split into two keys with different save models.
   "criterionDescriptions": { [scenarioId]: { [criterionKey]: string } },
   "scenarioList":          [ …Scenario ],
   "commTemplates":         [ …CommTemplate ],
-  "criteriaLibrary":       [ …LibraryCriterion ]
+  "criteriaLibrary":       [ …LibraryCriterion ],
+  "scenarioRules":         { [scenarioId]: { criteria: { [libraryId]: CritOverride } } }
 }
 ```
 
@@ -116,7 +117,7 @@ SubCriterion   { id, label, dataField, ruleType, thresholds{floor?,ceiling?,t?,x
 LibraryCriterion { id, label, description?, blocking, subCriteria: SubCriterion[] }   // persisted as criteriaLibrary
 ```
 
-Rules engine so far (Layer 1 built): the **criteria library** (Admin) lives in the config blob under `criteriaLibrary`; the data-field catalogue `DATA_FIELDS` and mocked per-counterparty values `COUNTERPARTY_FIELDS` are constants in `data.ts`. `subScore(ruleType, value, thresholds) -> 0..100` is the pure scoring function. Layer 2 (scenario composition + wiring the fit into prospecting and the deep-dive breakdown) is not built yet.
+Rules engine (both layers built): the **criteria library** (Admin) lives in the config blob under `criteriaLibrary`; the data-field catalogue `DATA_FIELDS` and mocked per-counterparty values `COUNTERPARTY_FIELDS` are constants in `data.ts`. **Layer 2** scenario overrides live in the config blob under `scenarioRules` (`CritOverride = { enabled?, weight?, subOverrides?: { [subId]: { enabled?, weight?, thresholds? } } }`). `resolveScenario(scenarioId)` merges library + overrides into `EffectiveCriterion[]`; `scoreFor(cpId, scenarioId)` runs `subScore` and `scoreBreakdown` to produce a `ScoreBreakdown { fit, blocked, criteria[...] }`. The Counterparties table fit + "Blocked" flag and the deep-dive breakdown-to-source both use `scoreFor`. The old `/scenario` (Configure) screen is legacy; composition now lives at `/scenarios`.
 
 Templates are content-admin authored (Admin role) and live in the **config blob** (Save-all). A template with no `scenarioId` is universal; one with a `scenarioId` overrides the universal for that channel + scenario. `renderTemplate(text, vars)` substitutes `{{token}}` values from `commTemplateVars(...)` (contact + account + scope); unknown tokens render as `[token]`. The CRM comms panel defaults to the universal template for the channel and lets the user pick a variant and edit before logging.
 

@@ -17,6 +17,7 @@ A full mirror lives in the `deal-scout` repo at `deal-scout/knowledge-pack/`. Th
 | [ROADMAP.md](ROADMAP.md) | Phases with concrete items, done / next / parked, and the inputs still required. |
 | [DECISIONS_AND_GOTCHAS.md](DECISIONS_AND_GOTCHAS.md) | Key decisions and why (lightweight ADR) plus every trap found, so no one relearns them. |
 | [REQUIREMENTS_rules-engine.md](REQUIREMENTS_rules-engine.md) | Formal requirements for the configurable scoring (rules engine) and CRM notes, from the 30 Jul meeting. |
+| [design/SEE-design-direction.md](design/SEE-design-direction.md) + [design/SEE_DESIGN_SPEC.md](design/SEE_DESIGN_SPEC.md) | SEE UX-leadership design direction (Apple-neutral + SEEL spectrum). The target for the re-skin. |
 
 ## Code repositories
 

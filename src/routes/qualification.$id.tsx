@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight } from "lucide-react";
-import { fitBarClass, fitColorClass } from "@/lib/data";
+import { fitBarClass, fitColorClass, type ScoreBreakdown } from "@/lib/data";
 import { useStore, type Decision } from "@/lib/store";
 import { AddToShortlist } from "@/components/AddToShortlist";
 
@@ -57,6 +57,9 @@ function QualificationScreen() {
     startCrm,
     accountForCounterparty,
     shortlists,
+    scoreFor,
+    selectedScenarioId,
+    scenarios,
   } = useStore();
   const navigate = useNavigate();
   const cp = rankedCounterparties.find((c) => c.id === id);
@@ -230,6 +233,13 @@ function QualificationScreen() {
               ))}
             </ul>
           </Card>
+
+          <ScoreBreakdownCard
+            breakdown={scoreFor(cp.id, selectedScenarioId)}
+            scenarioTitle={
+              scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario"
+            }
+          />
         </div>
 
         {/* RIGHT */}
@@ -401,5 +411,81 @@ function Note({ label, value }: { label: string; value: string }) {
       <span className="font-medium text-foreground">{label}: </span>
       <span className="text-muted-foreground">{value}</span>
     </div>
+  );
+}
+
+function ScoreBreakdownCard({
+  breakdown,
+  scenarioTitle,
+}: {
+  breakdown: ScoreBreakdown;
+  scenarioTitle: string;
+}) {
+  return (
+    <Card className="space-y-3 p-5">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-foreground">Score breakdown</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">{scenarioTitle}</span>
+          {breakdown.blocked ? (
+            <Badge variant="destructive">Blocked</Badge>
+          ) : (
+            <Badge>Fit {breakdown.fit}</Badge>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        How the fit is built, down to the source value.
+      </p>
+      <div className="space-y-3">
+        {breakdown.criteria.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No criteria configured for this scenario.
+          </p>
+        )}
+        {breakdown.criteria.map((c) => (
+          <div key={c.id} className="overflow-hidden rounded-md border border-border">
+            <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-1.5 text-sm">
+              <span className="font-medium text-foreground">{c.label}</span>
+              <span className="text-xs text-muted-foreground">
+                weight {c.weight} · score{" "}
+                <span className="font-semibold text-foreground">
+                  {c.blocked ? "blocked" : c.score}
+                </span>
+              </span>
+            </div>
+            <ul className="divide-y divide-border">
+              {c.subs.length === 0 && (
+                <li className="px-3 py-2 text-xs text-muted-foreground">
+                  No sub-criteria.
+                </li>
+              )}
+              {c.subs.map((s) => (
+                <li key={s.id} className="px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-foreground">{s.label}</span>
+                    <span className="font-semibold text-foreground">
+                      {s.skipped ? "skipped" : s.subScore}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-muted-foreground">
+                    {s.rawValue ?? "no data"}
+                    {s.unit ? ` ${s.unit}` : ""} · {s.ruleType} · weight {s.weight}
+                    {s.blocked && (
+                      <span className="ml-1 text-destructive">· blocks</span>
+                    )}
+                  </div>
+                  {s.source && (
+                    <div className="text-[11px] text-muted-foreground/70">
+                      source: {s.source}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }

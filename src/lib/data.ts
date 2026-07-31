@@ -793,6 +793,123 @@ export const criteriaLibrary: LibraryCriterion[] = [
   },
 ];
 
+// Effective (library + scenario overrides) shapes used for scoring + the breakdown.
+export interface EffectiveSub {
+  id: string;
+  label: string;
+  dataField: string;
+  ruleType: RuleType;
+  thresholds: RuleThresholds;
+  weight: number;
+  direction: Direction;
+  missing: MissingBehaviour;
+  enabled: boolean;
+  blocking: boolean;
+}
+export interface EffectiveCriterion {
+  id: string;
+  label: string;
+  description?: string;
+  blocking: boolean;
+  weight: number;
+  enabled: boolean;
+  subCriteria: EffectiveSub[];
+}
+export interface SubBreakdown {
+  id: string;
+  label: string;
+  field: string;
+  unit?: string;
+  source?: string;
+  rawValue?: number;
+  ruleType: RuleType;
+  thresholds: RuleThresholds;
+  subScore: number;
+  weight: number;
+  blocking: boolean;
+  blocked: boolean;
+  skipped: boolean;
+}
+export interface CritBreakdown {
+  id: string;
+  label: string;
+  weight: number;
+  score: number;
+  blocked: boolean;
+  subs: SubBreakdown[];
+}
+export interface ScoreBreakdown {
+  fit: number;
+  blocked: boolean;
+  criteria: CritBreakdown[];
+}
+
+// Deterministic, pure. fit = weighted avg of criterion scores (by criterion weight);
+// criterion score = weighted avg of sub-scores (by sub weight); enabled only; blocking zeros flag Blocked.
+export function scoreBreakdown(
+  criteria: EffectiveCriterion[],
+  getValue: (field: string) => number | undefined,
+): ScoreBreakdown {
+  let dealBlocked = false;
+  let fitNum = 0;
+  let fitDen = 0;
+  const critOut: CritBreakdown[] = [];
+  for (const c of criteria) {
+    if (!c.enabled) continue;
+    let cNum = 0;
+    let cDen = 0;
+    let cBlocked = false;
+    const subs: SubBreakdown[] = [];
+    for (const s of c.subCriteria) {
+      if (!s.enabled) continue;
+      const raw = getValue(s.dataField);
+      const fld = dataField(s.dataField);
+      let skipped = false;
+      let ss = 0;
+      let subBlocked = false;
+      if (raw === undefined) {
+        if (s.missing === "skip") skipped = true;
+        else if (s.missing === "block") subBlocked = true;
+      } else {
+        ss = subScore(s.ruleType, raw, s.thresholds);
+      }
+      if (s.blocking && ss === 0 && !skipped) subBlocked = true;
+      if (subBlocked) cBlocked = true;
+      subs.push({
+        id: s.id,
+        label: s.label,
+        field: s.dataField,
+        unit: fld?.unit,
+        source: fld?.source,
+        rawValue: raw,
+        ruleType: s.ruleType,
+        thresholds: s.thresholds,
+        subScore: ss,
+        weight: s.weight,
+        blocking: s.blocking,
+        blocked: subBlocked,
+        skipped,
+      });
+      if (!skipped) {
+        cNum += ss * s.weight;
+        cDen += s.weight;
+      }
+    }
+    let cScore = cDen ? Math.round(cNum / cDen) : 0;
+    if (cBlocked) cScore = 0;
+    const critBlocked = cBlocked || (c.blocking && cScore === 0);
+    if (critBlocked) dealBlocked = true;
+    critOut.push({ id: c.id, label: c.label, weight: c.weight, score: cScore, blocked: critBlocked, subs });
+    fitNum += cScore * c.weight;
+    fitDen += c.weight;
+  }
+  return {
+    fit: fitDen ? Math.round(fitNum / fitDen) : 0,
+    blocked: dealBlocked,
+    criteria: critOut,
+  };
+}
+
 export function fitScore(cp: Counterparty, weights: Record<CriteriaKey, number>): number {
   const totalW = CRITERIA.reduce((s, c) => s + weights[c.key], 0) || 1;
   const weighted =

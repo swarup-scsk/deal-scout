@@ -22,6 +22,7 @@
 - UX pass: persistent Home nav item across pages; wider layout (`max-w-screen-2xl`) so tables use large screens; LEI removed from the Counterparties table and shown on the deep dive; deep dive now carries the full company profile (all table fields incl LEI); deep dive shows a status strip reflecting existing CRM account and shortlist membership; return flow reworked (Back to counterparties, plus Back to shortlists only when the counterparty is in a list; primary button reads Record and return / Return by context).
 
 - Rules engine Layer 1 (Library): `/library` Admin screen with the approved sub-criterion form (data field, rule type, scoring band with floor/ceiling sliders, Importance weight, safeguards, live preview). Library persists in the config blob; `subScore` scoring function and mocked field values in place. Nav item added.
+- Rules engine Layer 2 (Scenario composition): `/scenarios` screen to select library criteria/sub-criteria, set criterion weight, and override sub Importance + thresholds, with a customised-vs-library tag and reset (persisted under `scenarioRules`). The new engine (`resolveScenario` + `scoreFor` + `scoreBreakdown`) drives the Counterparties fit and a "Blocked" flag, and a "why this score" breakdown-to-source panel on the deep dive. Old `/scenario` Configure screen is now legacy.
 
 ## Now (current prototype hardening)
 
@@ -30,7 +31,8 @@
 
 ## Next (finish the prototype story)
 
-- **Configurable rules engine - Layer 2** (spec: `REQUIREMENTS_rules-engine.md`): scenario composition screen (select library criteria/sub-criteria, set criterion weight, override sub Importance + thresholds, customised-vs-library indicator, reset), wire the fit + Blocked flag into the Counterparties table, and the deep-dive breakdown to source. Layer 1 (Library) is built. Values mocked.
+- **Design-system re-skin to the SEE design direction** (`design/SEE-design-direction.md`, `design/SEE_DESIGN_SPEC.md` from SEE UX leadership): Apple-neutral surfaces, SEEL spectrum (grey/blue/green) as the only accent, system font, sentence case everywhere, 0.5px hairlines, soft shadows, segmented controls, one signature gradient per screen. Apply app-wide via the token layer. This is the agreed next iteration.
+- Rules engine polish: scenario-level impact preview panel (Strong/Borderline/Blocked, movers vs saved); apply multiple scenarios; per-scenario fit-band thresholds.
 - **CRM notes**: separate, timestamped, attributed, editable/deletable notes on the account, independent of the comms log (no funnel).
 - **Value model as ranges** (conversion 8-12%, deal ~500K, 4 users) for the exec business-case slide.
 - **Deterministic scoring engine**: superseded by the rules engine above; keep the "why this score" breakdown panel requirement.

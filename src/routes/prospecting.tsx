@@ -46,7 +46,6 @@ import {
 import {
   fitBarClass,
   fitColorClass,
-  fitScore,
   type BusinessLineType,
 } from "@/lib/data";
 import { useStore } from "@/lib/store";
@@ -78,7 +77,7 @@ const BUSINESS_LINES: BusinessLineType[] = [
 ];
 
 function UniverseScreen() {
-  const { counterparties, addCounterparty, config, scenarios, accountForCounterparty } =
+  const { counterparties, addCounterparty, config, scenarios, accountForCounterparty, scoreFor } =
     useStore();
   const navigate = useNavigate();
   const search = Route.useSearch();
@@ -110,11 +109,13 @@ function UniverseScreen() {
   const scenario = scenarios.find((s) => s.id === scenarioId);
 
   let rows = counterparties.map((cp) => {
-    const fit = applied ? fitScore(cp, config.weights) : 0;
+    const bd = applied ? scoreFor(cp.id, scenarioId) : null;
+    const fit = bd?.fit ?? 0;
+    const blocked = bd?.blocked ?? false;
     const belowVolume = cp.annualVolume < config.rules.targetVolume;
     const belowMargin = cp.margin < config.rules.returnGate;
-    const belowHurdle = applied && fit < config.rules.fitMid;
-    return { ...cp, fit, belowVolume, belowMargin, belowHurdle };
+    const belowHurdle = applied && !blocked && fit < config.rules.fitMid;
+    return { ...cp, fit, blocked, belowVolume, belowMargin, belowHurdle };
   });
 
   type Row = (typeof rows)[number];
@@ -258,6 +259,11 @@ function UniverseScreen() {
               {acct && acct.status !== "deal-closed" && (
                 <Badge className="text-[10px]">In CRM</Badge>
               )}
+              {cp.blocked && (
+                <Badge variant="destructive" className="text-[10px]">
+                  Blocked
+                </Badge>
+              )}
               {cp.belowVolume && (
                 <Badge variant="outline" className="text-[10px]">
                   Below volume
@@ -371,7 +377,7 @@ function UniverseScreen() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate({ to: "/scenario" })}
+          onClick={() => navigate({ to: "/scenarios" })}
         >
           <Settings2 className="mr-2 h-4 w-4" /> Configure
         </Button>

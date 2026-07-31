@@ -9,10 +9,12 @@ import {
 import {
   commTemplates as seedTemplates,
   counterparties as seedCounterparties,
+  counterpartyFieldValue,
   criteriaLibrary as seedLibrary,
   defaultConfig,
   fitScore,
   inheritConfig,
+  scoreBreakdown,
   scenarios as seedScenarios,
   type Account,
   type AccountStatus,
@@ -24,13 +26,25 @@ import {
   type Contact,
   type ContactSource,
   type Counterparty,
+  type EffectiveCriterion,
   type LibraryCriterion,
   type Pillar,
+  type RuleThresholds,
   type Scenario,
   type ScenarioConfig,
+  type ScoreBreakdown,
   type Shortlist,
   type SubCriterion,
 } from "./data";
+
+// Scenario-level overrides on top of the library (Layer 2 composition).
+type SubOverride = { enabled?: boolean; weight?: number; thresholds?: RuleThresholds };
+type CritOverride = {
+  enabled?: boolean;
+  weight?: number;
+  subOverrides?: Record<string, SubOverride>;
+};
+type ScenarioRule = { criteria: Record<string, CritOverride> };
 
 // Config lives under the manual "Save all" model.
 const STORAGE_KEY = "deal-scout.state.v2";
@@ -128,6 +142,23 @@ interface StoreValue {
   ) => void;
   deleteSubCriterion: (critId: string, subId: string) => void;
 
+  // Scenario composition (rules engine, Layer 2). Overrides on top of the library.
+  resolveScenario: (scenarioId: string) => EffectiveCriterion[];
+  scoreFor: (counterpartyId: string, scenarioId: string) => ScoreBreakdown;
+  setScenarioCritOverride: (
+    scenarioId: string,
+    libraryId: string,
+    patch: { enabled?: boolean; weight?: number },
+  ) => void;
+  setScenarioSubOverride: (
+    scenarioId: string,
+    libraryId: string,
+    subId: string,
+    patch: SubOverride,
+  ) => void;
+  resetScenarioCriterion: (scenarioId: string, libraryId: string) => void;
+  isScenarioCriterionCustomised: (scenarioId: string, libraryId: string) => boolean;
+
   // Shortlists (playlist-style named lists).
   shortlists: Shortlist[];
   createShortlist: (name: string, firstCounterpartyId?: string) => string;
@@ -192,6 +223,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     useState<CommTemplate[]>(seedTemplates);
   const [criteriaLibraryList, setCriteriaLibraryList] =
     useState<LibraryCriterion[]>(seedLibrary);
+  const [scenarioRules, setScenarioRules] = useState<
+    Record<string, ScenarioRule>
+  >({});
   const [counterpartyList, setCounterpartyList] =
     useState<Counterparty[]>(seedCounterparties);
   const [shortlists, setShortlists] = useState<Shortlist[]>([]);
@@ -216,6 +250,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (s.scenarioList) setScenarioList(s.scenarioList);
         if (s.commTemplates) setCommTemplateList(s.commTemplates);
         if (s.criteriaLibrary) setCriteriaLibraryList(s.criteriaLibrary);
+        if (s.scenarioRules) setScenarioRules(s.scenarioRules);
         setSavedSnap(raw);
       } else {
         setSavedSnap(
@@ -228,6 +263,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             scenarioList: seedScenarios,
             commTemplates: seedTemplates,
             criteriaLibrary: seedLibrary,
+            scenarioRules: {},
           }),
         );
       }
@@ -498,6 +534,90 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ),
     );
 
+  // --- Scenario composition (rules engine, Layer 2) -----------------------
+  const resolveScenario = (scenarioId: string): EffectiveCriterion[] => {
+    const rule = scenarioRules[scenarioId];
+    return criteriaLibraryList.map((c) => {
+      const ov = rule?.criteria[c.id];
+      return {
+        id: c.id,
+        label: c.label,
+        description: c.description,
+        blocking: c.blocking,
+        weight: ov?.weight ?? 3,
+        enabled: ov?.enabled ?? true,
+        subCriteria: c.subCriteria.map((s) => {
+          const so = ov?.subOverrides?.[s.id];
+          return {
+            id: s.id,
+            label: s.label,
+            dataField: s.dataField,
+            ruleType: s.ruleType,
+            thresholds: so?.thresholds ?? s.thresholds,
+            weight: so?.weight ?? s.weight,
+            direction: s.direction,
+            missing: s.missing,
+            enabled: so?.enabled ?? s.enabled,
+            blocking: s.blocking,
+          };
+        }),
+      };
+    });
+  };
+  const scoreFor = (counterpartyId: string, scenarioId: string) =>
+    scoreBreakdown(resolveScenario(scenarioId), (f) =>
+      counterpartyFieldValue(counterpartyId, f),
+    );
+  const setScenarioCritOverride = (
+    scenarioId: string,
+    libraryId: string,
+    patch: { enabled?: boolean; weight?: number },
+  ) =>
+    setScenarioRules((p) => {
+      const rule = p[scenarioId] ?? { criteria: {} };
+      const cur = rule.criteria[libraryId] ?? {};
+      return {
+        ...p,
+        [scenarioId]: {
+          criteria: { ...rule.criteria, [libraryId]: { ...cur, ...patch } },
+        },
+      };
+    });
+  const setScenarioSubOverride = (
+    scenarioId: string,
+    libraryId: string,
+    subId: string,
+    patch: SubOverride,
+  ) =>
+    setScenarioRules((p) => {
+      const rule = p[scenarioId] ?? { criteria: {} };
+      const cur = rule.criteria[libraryId] ?? {};
+      const subs = cur.subOverrides ?? {};
+      const s = subs[subId] ?? {};
+      return {
+        ...p,
+        [scenarioId]: {
+          criteria: {
+            ...rule.criteria,
+            [libraryId]: {
+              ...cur,
+              subOverrides: { ...subs, [subId]: { ...s, ...patch } },
+            },
+          },
+        },
+      };
+    });
+  const resetScenarioCriterion = (scenarioId: string, libraryId: string) =>
+    setScenarioRules((p) => {
+      const rule = p[scenarioId];
+      if (!rule) return p;
+      const next = { ...rule.criteria };
+      delete next[libraryId];
+      return { ...p, [scenarioId]: { criteria: next } };
+    });
+  const isScenarioCriterionCustomised = (scenarioId: string, libraryId: string) =>
+    !!scenarioRules[scenarioId]?.criteria[libraryId];
+
   // --- Shortlists ---------------------------------------------------------
   const createShortlist = (name: string, firstCounterpartyId?: string) => {
     const id = uid("sl");
@@ -686,6 +806,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     scenarioList,
     commTemplates: commTemplateList,
     criteriaLibrary: criteriaLibraryList,
+    scenarioRules,
   });
   const dirty = hydrated && currentSnap !== savedSnap;
   const saveAll = () => {
@@ -739,6 +860,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addSubCriterion,
     updateSubCriterion,
     deleteSubCriterion,
+    resolveScenario,
+    scoreFor,
+    setScenarioCritOverride,
+    setScenarioSubOverride,
+    resetScenarioCriterion,
+    isScenarioCriterionCustomised,
     shortlists,
     createShortlist,
     renameShortlist,
