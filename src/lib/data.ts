@@ -638,6 +638,161 @@ SEE Origination`,
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Rules engine (configurable scoring). See knowledge-pack/REQUIREMENTS_rules-engine.md.
+// Library (Admin) defines criteria + sub-criteria + deterministic logic + sub weight.
+// Scenario (originator) selects/overrides + sets criterion weight. Values mocked.
+// ---------------------------------------------------------------------------
+
+export type RuleType =
+  | "graded-min"
+  | "graded-max"
+  | "gate-min"
+  | "gate-max"
+  | "between"
+  | "boolean";
+
+export const RULE_TYPES: { value: RuleType; label: string }[] = [
+  { value: "graded-min", label: "graded · more is better" },
+  { value: "graded-max", label: "graded · less is better" },
+  { value: "gate-min", label: "pass / fail · at least" },
+  { value: "gate-max", label: "pass / fail · at most" },
+  { value: "between", label: "in a range" },
+  { value: "boolean", label: "present or not" },
+];
+
+export type Direction = "higher" | "lower";
+export type MissingBehaviour = "zero" | "skip" | "block";
+
+export interface RuleThresholds {
+  floor?: number;
+  ceiling?: number;
+  t?: number;
+  x?: number;
+  y?: number;
+}
+
+export interface SubCriterion {
+  id: string;
+  label: string;
+  dataField: string; // DataField.key
+  ruleType: RuleType;
+  thresholds: RuleThresholds;
+  weight: number; // 1-5 Importance (library default)
+  direction: Direction;
+  missing: MissingBehaviour;
+  enabled: boolean;
+  blocking: boolean;
+}
+
+export interface LibraryCriterion {
+  id: string;
+  label: string;
+  description?: string;
+  blocking: boolean;
+  subCriteria: SubCriterion[];
+}
+
+export interface DataField {
+  key: string;
+  label: string;
+  unit?: string;
+  source: string;
+}
+
+// The catalogue of fields a sub-criterion can reference (mocked sources).
+export const DATA_FIELDS: DataField[] = [
+  { key: "netDebt", label: "Net debt", unit: "EUR (M)", source: "Filings register (mocked)" },
+  { key: "netAssets", label: "Net assets", unit: "EUR (M)", source: "Filings register (mocked)" },
+  { key: "revenue", label: "Revenue", unit: "EUR (M)", source: "Filings register (mocked)" },
+  { key: "creditRating", label: "Credit rating proxy", unit: "0-100", source: "D&B proxy (mocked)" },
+  { key: "headcount", label: "Headcount", unit: "people", source: "Company profile (mocked)" },
+  { key: "memberships", label: "Exchange / clearing memberships", unit: "count", source: "ICE / EEX lists (mocked)" },
+  { key: "annualVolume", label: "Annual volume", unit: "GWh/yr", source: "Market scan (mocked)" },
+];
+
+export function dataField(key: string): DataField | undefined {
+  return DATA_FIELDS.find((f) => f.key === key);
+}
+
+// Mocked raw field values per counterparty (id -> field key -> value).
+export const COUNTERPARTY_FIELDS: Record<string, Record<string, number>> = {
+  "vitalgas-nl": { netDebt: 220, netAssets: 900, revenue: 2400, creditRating: 90, headcount: 1200, memberships: 3, annualVolume: 3400 },
+  "delta-energie-be": { netDebt: 140, netAssets: 520, revenue: 1100, creditRating: 82, headcount: 640, memberships: 2, annualVolume: 2100 },
+  "haven-utilities-nl": { netDebt: 90, netAssets: 300, revenue: 780, creditRating: 76, headcount: 410, memberships: 1, annualVolume: 1250 },
+  "meridian-power-be": { netDebt: 260, netAssets: 640, revenue: 1600, creditRating: 80, headcount: 890, memberships: 2, annualVolume: 900 },
+  "noordzee-supply-nl": { netDebt: 40, netAssets: 120, revenue: 430, creditRating: 64, headcount: 220, memberships: 0, annualVolume: 620 },
+  "kanaal-trading-be": { netDebt: 120, netAssets: 380, revenue: 900, creditRating: 78, headcount: 500, memberships: 2, annualVolume: 1600 },
+};
+
+export function counterpartyFieldValue(cpId: string, key: string): number | undefined {
+  const row = COUNTERPARTY_FIELDS[cpId];
+  if (row && key in row) return row[key];
+  return undefined;
+}
+
+// Deterministic sub-score: maps a raw value to 0-100 per the rule type + thresholds.
+export function subScore(rule: RuleType, value: number, th: RuleThresholds): number {
+  const n = value;
+  switch (rule) {
+    case "gate-min":
+      return n >= (th.t ?? 0) ? 100 : 0;
+    case "gate-max":
+      return n <= (th.t ?? 0) ? 100 : 0;
+    case "graded-min": {
+      const f = th.floor ?? 0;
+      const c = th.ceiling ?? 100;
+      if (c <= f) return n >= c ? 100 : 0;
+      return n <= f ? 0 : n >= c ? 100 : Math.round(((n - f) / (c - f)) * 100);
+    }
+    case "graded-max": {
+      const f = th.floor ?? 0;
+      const c = th.ceiling ?? 100;
+      if (c <= f) return n <= f ? 100 : 0;
+      return n >= c ? 0 : n <= f ? 100 : Math.round(((c - n) / (c - f)) * 100);
+    }
+    case "between": {
+      const lo = Math.min(th.x ?? 0, th.y ?? 0);
+      const hi = Math.max(th.x ?? 0, th.y ?? 0);
+      return n >= lo && n <= hi ? 100 : 0;
+    }
+    case "boolean":
+      return n > 0 ? 100 : 0;
+  }
+}
+
+// Seed library: 3 criteria (matches the placeholder scenario set).
+export const criteriaLibrary: LibraryCriterion[] = [
+  {
+    id: "balance-sheet-fit",
+    label: "Balance sheet fit",
+    description: "Whether the balance sheet supports the deal.",
+    blocking: true,
+    subCriteria: [
+      { id: "net-debt", label: "Net debt", dataField: "netDebt", ruleType: "graded-min", thresholds: { floor: 100, ceiling: 1000 }, weight: 3, direction: "higher", missing: "zero", enabled: true, blocking: true },
+      { id: "net-assets", label: "Net assets", dataField: "netAssets", ruleType: "graded-min", thresholds: { floor: 100, ceiling: 800 }, weight: 2, direction: "higher", missing: "zero", enabled: true, blocking: false },
+    ],
+  },
+  {
+    id: "market-access-gap",
+    label: "Market access gap",
+    description: "A lack of direct market access is SEE's opportunity.",
+    blocking: false,
+    subCriteria: [
+      { id: "exchange-gap", label: "Exchange access gap", dataField: "memberships", ruleType: "graded-max", thresholds: { floor: 0, ceiling: 4 }, weight: 4, direction: "lower", missing: "zero", enabled: true, blocking: false },
+    ],
+  },
+  {
+    id: "consumption-volume",
+    label: "Consumption volume",
+    description: "Annual gas or power consumption.",
+    blocking: false,
+    subCriteria: [
+      { id: "annual-consumption", label: "Annual volume", dataField: "annualVolume", ruleType: "graded-min", thresholds: { floor: 500, ceiling: 5000 }, weight: 3, direction: "higher", missing: "zero", enabled: true, blocking: false },
+    ],
+  },
+];
+
 export function fitScore(cp: Counterparty, weights: Record<CriteriaKey, number>): number {
   const totalW = CRITERIA.reduce((s, c) => s + weights[c.key], 0) || 1;
   const weighted =

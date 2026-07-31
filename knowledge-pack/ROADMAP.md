@@ -21,6 +21,8 @@
 - Communication templates module: `/templates` admin screen (Admin authors per channel, universal or per-scenario override); CRM comms panel pulls templates, merges `{{variables}}`, defaults to universal, editable before logging. Templates persist in the config blob.
 - UX pass: persistent Home nav item across pages; wider layout (`max-w-screen-2xl`) so tables use large screens; LEI removed from the Counterparties table and shown on the deep dive; deep dive now carries the full company profile (all table fields incl LEI); deep dive shows a status strip reflecting existing CRM account and shortlist membership; return flow reworked (Back to counterparties, plus Back to shortlists only when the counterparty is in a list; primary button reads Record and return / Return by context).
 
+- Rules engine Layer 1 (Library): `/library` Admin screen with the approved sub-criterion form (data field, rule type, scoring band with floor/ceiling sliders, Importance weight, safeguards, live preview). Library persists in the config blob; `subScore` scoring function and mocked field values in place. Nav item added.
+
 ## Now (current prototype hardening)
 
 - **Design-system re-skin** to the SEE Design Spec (Apple-neutral surfaces, SEEL blue/green accent, system font, sentence case, hairline borders, segmented controls). Deferred to the next iteration by owner instruction; functional changes landed first.
@@ -28,7 +30,10 @@
 
 ## Next (finish the prototype story)
 
-- **Deterministic scoring engine**: band editor / scoring-logic layer per scenario, plus a "why this score" breakdown panel (needs Michael's band definitions). Apply multiple scenarios at once.
+- **Configurable rules engine - Layer 2** (spec: `REQUIREMENTS_rules-engine.md`): scenario composition screen (select library criteria/sub-criteria, set criterion weight, override sub Importance + thresholds, customised-vs-library indicator, reset), wire the fit + Blocked flag into the Counterparties table, and the deep-dive breakdown to source. Layer 1 (Library) is built. Values mocked.
+- **CRM notes**: separate, timestamped, attributed, editable/deletable notes on the account, independent of the comms log (no funnel).
+- **Value model as ranges** (conversion 8-12%, deal ~500K, 4 users) for the exec business-case slide.
+- **Deterministic scoring engine**: superseded by the rules engine above; keep the "why this score" breakdown panel requirement.
 - **Real Export**: table view and detailed view (currently mocked).
 - Micro-CRM realism: replace mock enrichment with real website / ZoomInfo lookups; wire real email; ingest closed-deal status from the external deal system.
 - Qualification audit polish; indicative value model.

@@ -71,7 +71,8 @@ Persistence is split into two keys with different save models.
   "disabledRules":         { [scenarioId]: string[] },
   "criterionDescriptions": { [scenarioId]: { [criterionKey]: string } },
   "scenarioList":          [ …Scenario ],
-  "commTemplates":         [ …CommTemplate ]
+  "commTemplates":         [ …CommTemplate ],
+  "criteriaLibrary":       [ …LibraryCriterion ]
 }
 ```
 
@@ -107,7 +108,15 @@ Contact { id, accountId, name, role, email?, phone?, linkedin?, source: "auto"|"
 CommLog { id, accountId, channel: "email"|"linkedin"|"note", subject?, body, timestamp }
 
 CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob; scenarioId undefined = universal
+
+// Rules engine (config blob). See REQUIREMENTS_rules-engine.md.
+DataField      { key, label, unit?, source }                       // DATA_FIELDS catalogue (constant, not persisted)
+RuleType       = "graded-min"|"graded-max"|"gate-min"|"gate-max"|"between"|"boolean"
+SubCriterion   { id, label, dataField, ruleType, thresholds{floor?,ceiling?,t?,x?,y?}, weight, direction, missing, enabled, blocking }
+LibraryCriterion { id, label, description?, blocking, subCriteria: SubCriterion[] }   // persisted as criteriaLibrary
 ```
+
+Rules engine so far (Layer 1 built): the **criteria library** (Admin) lives in the config blob under `criteriaLibrary`; the data-field catalogue `DATA_FIELDS` and mocked per-counterparty values `COUNTERPARTY_FIELDS` are constants in `data.ts`. `subScore(ruleType, value, thresholds) -> 0..100` is the pure scoring function. Layer 2 (scenario composition + wiring the fit into prospecting and the deep-dive breakdown) is not built yet.
 
 Templates are content-admin authored (Admin role) and live in the **config blob** (Save-all). A template with no `scenarioId` is universal; one with a `scenarioId` overrides the universal for that channel + scenario. `renderTemplate(text, vars)` substitutes `{{token}}` values from `commTemplateVars(...)` (contact + account + scope); unknown tokens render as `[token]`. The CRM comms panel defaults to the universal template for the channel and lets the user pick a variant and edit before logging.
 

@@ -9,6 +9,7 @@ import {
 import {
   commTemplates as seedTemplates,
   counterparties as seedCounterparties,
+  criteriaLibrary as seedLibrary,
   defaultConfig,
   fitScore,
   inheritConfig,
@@ -23,10 +24,12 @@ import {
   type Contact,
   type ContactSource,
   type Counterparty,
+  type LibraryCriterion,
   type Pillar,
   type Scenario,
   type ScenarioConfig,
   type Shortlist,
+  type SubCriterion,
 } from "./data";
 
 // Config lives under the manual "Save all" model.
@@ -109,6 +112,22 @@ interface StoreValue {
   updateTemplate: (id: string, patch: Partial<Omit<CommTemplate, "id">>) => void;
   deleteTemplate: (id: string) => void;
 
+  // Criteria library (Admin-authored; config data). Layer 1 of the rules engine.
+  criteriaLibrary: LibraryCriterion[];
+  addLibraryCriterion: () => string;
+  updateLibraryCriterion: (
+    id: string,
+    patch: Partial<Omit<LibraryCriterion, "id" | "subCriteria">>,
+  ) => void;
+  deleteLibraryCriterion: (id: string) => void;
+  addSubCriterion: (critId: string) => void;
+  updateSubCriterion: (
+    critId: string,
+    subId: string,
+    patch: Partial<Omit<SubCriterion, "id">>,
+  ) => void;
+  deleteSubCriterion: (critId: string, subId: string) => void;
+
   // Shortlists (playlist-style named lists).
   shortlists: Shortlist[];
   createShortlist: (name: string, firstCounterpartyId?: string) => string;
@@ -171,6 +190,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<"Admin" | "User">("Admin");
   const [commTemplateList, setCommTemplateList] =
     useState<CommTemplate[]>(seedTemplates);
+  const [criteriaLibraryList, setCriteriaLibraryList] =
+    useState<LibraryCriterion[]>(seedLibrary);
   const [counterpartyList, setCounterpartyList] =
     useState<Counterparty[]>(seedCounterparties);
   const [shortlists, setShortlists] = useState<Shortlist[]>([]);
@@ -194,6 +215,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setCriterionDescriptions(s.criterionDescriptions);
         if (s.scenarioList) setScenarioList(s.scenarioList);
         if (s.commTemplates) setCommTemplateList(s.commTemplates);
+        if (s.criteriaLibrary) setCriteriaLibraryList(s.criteriaLibrary);
         setSavedSnap(raw);
       } else {
         setSavedSnap(
@@ -205,6 +227,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             criterionDescriptions: {},
             scenarioList: seedScenarios,
             commTemplates: seedTemplates,
+            criteriaLibrary: seedLibrary,
           }),
         );
       }
@@ -406,6 +429,75 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const deleteTemplate = (id: string) =>
     setCommTemplateList((l) => l.filter((t) => t.id !== id));
 
+  // --- Criteria library (rules engine, Layer 1) ---------------------------
+  const addLibraryCriterion = () => {
+    const id = uid("crit");
+    setCriteriaLibraryList((l) => [
+      ...l,
+      { id, label: "New criterion", description: "", blocking: false, subCriteria: [] },
+    ]);
+    return id;
+  };
+  const updateLibraryCriterion = (
+    id: string,
+    patch: Partial<Omit<LibraryCriterion, "id" | "subCriteria">>,
+  ) =>
+    setCriteriaLibraryList((l) =>
+      l.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    );
+  const deleteLibraryCriterion = (id: string) =>
+    setCriteriaLibraryList((l) => l.filter((c) => c.id !== id));
+  const addSubCriterion = (critId: string) =>
+    setCriteriaLibraryList((l) =>
+      l.map((c) =>
+        c.id === critId
+          ? {
+              ...c,
+              subCriteria: [
+                ...c.subCriteria,
+                {
+                  id: uid("sub"),
+                  label: "New sub-criterion",
+                  dataField: "netDebt",
+                  ruleType: "graded-min",
+                  thresholds: { floor: 0, ceiling: 100 },
+                  weight: 3,
+                  direction: "higher",
+                  missing: "zero",
+                  enabled: true,
+                  blocking: false,
+                },
+              ],
+            }
+          : c,
+      ),
+    );
+  const updateSubCriterion = (
+    critId: string,
+    subId: string,
+    patch: Partial<Omit<SubCriterion, "id">>,
+  ) =>
+    setCriteriaLibraryList((l) =>
+      l.map((c) =>
+        c.id === critId
+          ? {
+              ...c,
+              subCriteria: c.subCriteria.map((s) =>
+                s.id === subId ? { ...s, ...patch } : s,
+              ),
+            }
+          : c,
+      ),
+    );
+  const deleteSubCriterion = (critId: string, subId: string) =>
+    setCriteriaLibraryList((l) =>
+      l.map((c) =>
+        c.id === critId
+          ? { ...c, subCriteria: c.subCriteria.filter((s) => s.id !== subId) }
+          : c,
+      ),
+    );
+
   // --- Shortlists ---------------------------------------------------------
   const createShortlist = (name: string, firstCounterpartyId?: string) => {
     const id = uid("sl");
@@ -593,6 +685,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     criterionDescriptions,
     scenarioList,
     commTemplates: commTemplateList,
+    criteriaLibrary: criteriaLibraryList,
   });
   const dirty = hydrated && currentSnap !== savedSnap;
   const saveAll = () => {
@@ -639,6 +732,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addTemplate,
     updateTemplate,
     deleteTemplate,
+    criteriaLibrary: criteriaLibraryList,
+    addLibraryCriterion,
+    updateLibraryCriterion,
+    deleteLibraryCriterion,
+    addSubCriterion,
+    updateSubCriterion,
+    deleteSubCriterion,
     shortlists,
     createShortlist,
     renameShortlist,

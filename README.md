@@ -54,6 +54,7 @@ git push
 | `src/routes/shortlists.tsx` | Named shortlists (playlist-style). |
 | `src/routes/crm.tsx`, `src/routes/crm.index.tsx`, `src/routes/crm.$accountId.tsx` | Micro-CRM layout, list and account detail. |
 | `src/routes/templates.tsx` | Communication template management (Admin). |
+| `src/routes/library.tsx` | Criteria library (Admin): rules-engine sub-criterion editor. |
 | `src/components/AddToShortlist.tsx` | Reusable add-to-shortlist dialog (table + deep dive). |
 | `src/lib/data.ts` | Domain types + mocked seed data (see `knowledge-pack/DATA_CONTRACT.md`). |
 | `src/lib/store.tsx` | Context store + two localStorage blobs (`deal-scout.state.v2` config, `deal-scout.ops.v1` operational). |
