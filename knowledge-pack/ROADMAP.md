@@ -23,15 +23,15 @@
 
 - Rules engine Layer 1 (Library): `/library` Admin screen with the approved sub-criterion form (data field, rule type, scoring band with floor/ceiling sliders, Importance weight, safeguards, live preview). Library persists in the config blob; `subScore` scoring function and mocked field values in place. Nav item added.
 - Rules engine Layer 2 (Scenario composition): `/scenarios` screen to select library criteria/sub-criteria, set criterion weight, and override sub Importance + thresholds, with a customised-vs-library tag and reset (persisted under `scenarioRules`). The new engine (`resolveScenario` + `scoreFor` + `scoreBreakdown`) drives the Counterparties fit and a "Blocked" flag, and a "why this score" breakdown-to-source panel on the deep dive. Old `/scenario` Configure screen is now legacy.
+- SEE design re-skin applied at the token layer: `src/styles.css` tokens remapped to the SEEL spectrum (Apple-neutral surfaces, blue #0091d4 primary + accent, green #00c29d success), system font stack on body, sentence case enforced globally (the `uppercase` utility is neutralised), and a signature gradient strip in the app shell (one per screen). Every screen re-skins at once because they use semantic token classes.
 
 ## Now (current prototype hardening)
 
-- **Design-system re-skin** to the SEE Design Spec (Apple-neutral surfaces, SEEL blue/green accent, system font, sentence case, hairline borders, segmented controls). Deferred to the next iteration by owner instruction; functional changes landed first.
 - **Prospecting Priority-1 backlog** (from the value-discussion transcript): multi-select market scope + sub-region; volume ranges (0-500 GWh, 500 GWh-1 TWh, 1-5 TWh, 5 TWh+); licence-status filter (supplier / end-user / shipper); participant-role / business-line multi-select; restore info tooltips.
 
 ## Next (finish the prototype story)
 
-- **Design-system re-skin to the SEE design direction** (`design/SEE-design-direction.md`, `design/SEE_DESIGN_SPEC.md` from SEE UX leadership): Apple-neutral surfaces, SEEL spectrum (grey/blue/green) as the only accent, system font, sentence case everywhere, 0.5px hairlines, soft shadows, segmented controls, one signature gradient per screen. Apply app-wide via the token layer. This is the agreed next iteration.
+- Design re-skin polish (optional): true 0.5px hairlines, soft two-layer card shadows, and flip segmented-control active state to white-pill + accent-text per the spec. Token re-skin is done; these are finishing touches.
 - Rules engine polish: scenario-level impact preview panel (Strong/Borderline/Blocked, movers vs saved); apply multiple scenarios; per-scenario fit-band thresholds.
 - **CRM notes**: separate, timestamped, attributed, editable/deletable notes on the account, independent of the comms log (no funnel).
 - **Value model as ranges** (conversion 8-12%, deal ~500K, 4 users) for the exec business-case slide.

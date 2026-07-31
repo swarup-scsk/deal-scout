@@ -18,6 +18,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <div className="seel-strip" />
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-screen-2xl items-center gap-4 px-6 py-3">
           <Link to="/" className="flex items-center gap-3">

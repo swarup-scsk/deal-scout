@@ -79,8 +79,8 @@ Never commit real values. `.env.local`, `.dev.vars`, and `.wrangler/` are gitign
 
 ## Design system
 
-- Tokens defined in `src/styles.css` using **oklch** colors under `@theme inline` + `:root` / `.dark`.
-- Key semantic colors: `primary` (navy), `accent` (light blue), `brand-blue` (mid blue for active/accent states), `muted`, `success` (green), `warning` (amber), `destructive`.
-- Radius base `0.625rem` with `sm/md/lg/xl` steps.
-- Components: shadcn/ui in `src/components/ui/*`; app shell in `src/components/AppShell.tsx`.
-- Convention: always use semantic token classes (`bg-primary`, `text-muted-foreground`, `border-border`), never hard-coded colors, so light/dark and rebranding stay consistent.
+- Follows the **SEE design direction** (`knowledge-pack/design/SEE-design-direction.md`): Apple-neutral surfaces with the SEEL spectrum (grey/blue/green) as the only accent. Adopted at the token layer, so every screen inherits it.
+- Tokens in `src/styles.css` (`:root`) now use **SEEL hex**: `--background #f5f5f7`, `--card #ffffff`, `--foreground #1d1d1f`, `--muted-foreground #6e6e73`, `--border #d7d7dc`, `--primary` and `--brand-blue` and `--ring` = spectrum blue `#0091d4`, `--success` = spectrum green `#00c29d`, `--accent` light blue tint, `--warning` amber, `--destructive` coral-red. `--seel-gradient` is the signature gradient.
+- Body uses the **system font stack**; **sentence case** is enforced globally (the `uppercase` utility is neutralised in the base layer). The `.seel-strip` (3px gradient) appears once, in the app shell.
+- Radius base `0.625rem` (10px). Components: shadcn/ui in `src/components/ui/*`; app shell in `src/components/AppShell.tsx`.
+- Convention: always use semantic token classes (`bg-primary`, `text-muted-foreground`, `border-border`, `brand-blue`, `success`), never hard-coded colors, so a re-skin is a token edit.

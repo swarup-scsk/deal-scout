@@ -66,28 +66,30 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.975 0.004 250);
-  --foreground: oklch(0.22 0.03 258);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.03 258);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.03 258);
-  --primary: oklch(0.32 0.07 258);
-  --primary-foreground: oklch(0.985 0.003 247.858);
-  --secondary: oklch(0.955 0.008 250);
-  --secondary-foreground: oklch(0.32 0.07 258);
-  --muted: oklch(0.955 0.008 250);
-  --muted-foreground: oklch(0.52 0.03 257);
-  --accent: oklch(0.93 0.04 245);
-  --accent-foreground: oklch(0.32 0.07 258);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.9 0.012 255);
-  --input: oklch(0.9 0.012 255);
-  --ring: oklch(0.55 0.1 250);
-  --brand-blue: oklch(0.58 0.13 248);
-  --success: oklch(0.62 0.15 150);
-  --warning: oklch(0.75 0.15 75);
+  /* SEE design direction: Apple-neutral surfaces + SEEL spectrum accent. */
+  --background: #f5f5f7;
+  --foreground: #1d1d1f;
+  --card: #ffffff;
+  --card-foreground: #1d1d1f;
+  --popover: #ffffff;
+  --popover-foreground: #1d1d1f;
+  --primary: #0091d4;
+  --primary-foreground: #ffffff;
+  --secondary: #ececee;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f0f0f2;
+  --muted-foreground: #6e6e73;
+  --accent: #e6f1fb;
+  --accent-foreground: #0c447c;
+  --destructive: #d8563a;
+  --destructive-foreground: #ffffff;
+  --border: #d7d7dc;
+  --input: #d7d7dc;
+  --ring: #0091d4;
+  --brand-blue: #0091d4;
+  --success: #00c29d;
+  --warning: #bf7d15;
+  --seel-gradient: linear-gradient(90deg, #545655 0%, #0091d4 55%, #00c29d 100%);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -146,5 +148,21 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto,
+      Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
+}
+
+/* SEE direction: sentence case everywhere. Unlayered so it wins over the
+   Tailwind utilities layer and neutralises any `uppercase` utility. */
+.uppercase {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* SEE signature gradient: use once per screen (a 3px top strip). */
+.seel-strip {
+  height: 3px;
+  background: var(--seel-gradient);
 }
