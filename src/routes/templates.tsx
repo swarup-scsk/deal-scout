@@ -18,7 +18,7 @@ import { useStore } from "@/lib/store";
 export const Route = createFileRoute("/templates")({
   head: () => ({
     meta: [
-      { title: "Templates — SEE Origination Scout" },
+      { title: "Templates - SEE Origination Scout" },
       {
         name: "description",
         content: "Manage communication templates for each channel.",
@@ -41,15 +41,9 @@ function Templates() {
     updateTemplate,
     deleteTemplate,
     scenarios,
-    role,
-    setRole,
     dirty,
     saveAll,
   } = useStore();
-  const isAdmin = role === "Admin";
-
-  const scenarioLabel = (id?: string) =>
-    id ? (scenarios.find((s) => s.id === id)?.title ?? "Unknown") : "Universal";
 
   return (
     <div className="space-y-5">
@@ -59,45 +53,20 @@ function Templates() {
             Communication templates
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {isAdmin
-              ? "Author templates per channel. Leave scenario as Universal, or override for a transaction type."
-              : "Read-only view. Switch to Admin to make changes."}
+            Author templates per channel. Leave scenario as Universal, or override
+            for a transaction type.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Viewing as
-            </span>
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
-              {(["Admin", "User"] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                    role === r
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-          {isAdmin &&
-            (dirty ? (
-              <Button onClick={saveAll}>Save all</Button>
-            ) : (
-              <span className="flex items-center gap-1.5 self-end rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">
-                <Check className="h-3.5 w-3.5" /> All changes saved
-              </span>
-            ))}
-        </div>
+        {dirty ? (
+          <Button onClick={saveAll}>Save all</Button>
+        ) : (
+          <span className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">
+            <Check className="h-3.5 w-3.5" /> All changes saved
+          </span>
+        )}
       </div>
 
-      {isAdmin && (
+      {(
         <Card className="flex flex-wrap items-center gap-2 p-3">
           <span className="text-xs text-muted-foreground">Add a template:</span>
           {CHANNELS.map((c) => (
@@ -149,8 +118,6 @@ function Templates() {
                     <Label className="text-xs">Name</Label>
                     <Input
                       value={t.name}
-                      readOnly={!isAdmin}
-                      className={!isAdmin ? "bg-muted/40" : ""}
                       onChange={(e) =>
                         updateTemplate(t.id, { name: e.target.value })
                       }
@@ -158,8 +125,7 @@ function Templates() {
                   </div>
                   <div className="w-56 space-y-1.5">
                     <Label className="text-xs">Scenario</Label>
-                    {isAdmin ? (
-                      <Select
+                    <Select
                         value={t.scenarioId ?? "universal"}
                         onValueChange={(v) =>
                           updateTemplate(t.id, {
@@ -178,23 +144,16 @@ function Templates() {
                             </SelectItem>
                           ))}
                         </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-                        {scenarioLabel(t.scenarioId)}
-                      </div>
-                    )}
+                    </Select>
                   </div>
-                  {isAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-5 text-destructive hover:text-destructive"
-                      onClick={() => deleteTemplate(t.id)}
-                    >
-                      <Trash2 className="mr-1.5 h-4 w-4" /> Delete
-                    </Button>
-                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-5 text-destructive hover:text-destructive"
+                    onClick={() => deleteTemplate(t.id)}
+                  >
+                    <Trash2 className="mr-1.5 h-4 w-4" /> Delete
+                  </Button>
                 </div>
 
                 {t.channel === "email" && (
@@ -202,8 +161,6 @@ function Templates() {
                     <Label className="text-xs">Subject</Label>
                     <Input
                       value={t.subject ?? ""}
-                      readOnly={!isAdmin}
-                      className={!isAdmin ? "bg-muted/40" : ""}
                       onChange={(e) =>
                         updateTemplate(t.id, { subject: e.target.value })
                       }
@@ -216,8 +173,6 @@ function Templates() {
                   <Textarea
                     rows={6}
                     value={t.body}
-                    readOnly={!isAdmin}
-                    className={!isAdmin ? "bg-muted/40" : ""}
                     onChange={(e) =>
                       updateTemplate(t.id, { body: e.target.value })
                     }
