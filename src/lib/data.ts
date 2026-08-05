@@ -46,6 +46,45 @@ export interface Scenario {
   spec: Criterion[]; // ranking/filter criteria (Michael's model)
 }
 
+// Real, sourced regulatory identity for a featured counterparty (demo).
+// These carry genuine data retrieved from Ofgem + GLEIF, unlike the mocked fields.
+export interface OfgemLicence {
+  companyNumber: string;
+  electricity?: string;
+  gas?: string;
+  retrieved: string;
+  electricityUrl: string;
+  gasUrl: string;
+}
+
+export interface GleifSnapshot {
+  lei: string;
+  legalName: string;
+  companyNumber: string;
+  status: string; // entity status, e.g. ACTIVE
+  registrationStatus: string; // e.g. ISSUED
+  corroboration: string; // e.g. FULLY_CORROBORATED
+  hq: string; // e.g. "Nottingham, GB"
+  lastUpdate: string; // e.g. 2026-05-18
+  note?: string;
+}
+
+// Real filed financials from Companies House / audited accounts (verified snapshot).
+export interface CompaniesHouseFinancials {
+  fiscalYear: string;
+  revenue: string;
+  revenueGrowth?: string;
+  adjEbitda?: string;
+  profitBeforeTax?: string;
+  netCash?: string;
+  deliveredVolume?: string;
+  companyNumber: string;
+  basis: string;
+  source: string;
+  retrieved: string;
+  url: string;
+}
+
 export interface Counterparty {
   id: string;
   company: string;
@@ -79,7 +118,15 @@ export interface Counterparty {
   indicativeSizing: string;
   demandProfileFit: string;
   keyRisk: string;
+  // Optional real, sourced data (present only for the featured demo counterparty).
+  realData?: boolean;
+  regulatory?: OfgemLicence;
+  gleif?: GleifSnapshot;
+  financials?: CompaniesHouseFinancials;
 }
+
+// The one counterparty backed by real, retrieved data (Ofgem + GLEIF) for the demo.
+export const FEATURED_COUNTERPARTY_ID = "yu-energy-gb";
 
 export interface Config {
   rules: {
@@ -259,6 +306,88 @@ export const scenarios: Scenario[] = [
 ];
 
 export const counterparties: Counterparty[] = [
+  {
+    id: FEATURED_COUNTERPARTY_ID,
+    company: "Yü Energy (Yu Energy Retail Ltd)",
+    country: "United Kingdom",
+    legalEntityName: "Yu Energy Retail Ltd",
+    lei: "213800ACO9GDDBM7DS35",
+    revenueEbitda: "£645.5m / £48.8m adj. EBITDA (Yü Group, FY2024)",
+    headcount: "~800",
+    businessLine: "Non-domestic gas & power supply",
+    businessLineType: "Energy Supplier",
+    markets: "GB (N2EX / APX power, NBP gas)",
+    portfolioSize: "~2,210 GWh delivered",
+    gasMarket: "Active",
+    powerMarket: "Active",
+    annualVolume: 2210,
+    aiInsight:
+      "Fast-growing GB B2B supplier with no direct exchange membership, a clear route-to-market gap.",
+    margin: 1400000,
+    sub: {
+      strategicFit: 82,
+      profitability: 78,
+      portfolioSynergy: 80,
+      complexity: 60,
+      dataAvailability: 88,
+    },
+    sector: "Business energy supply",
+    priceHub: "NBP / GB power",
+    seasonalSwing: 70,
+    creditworthiness: 74,
+    contact: "No prior contact",
+    standing: "New prospect",
+    lastContact: "No prior contact",
+    evidence: [
+      "Ofgem: licensed GB electricity and gas supplier (domestic and non-domestic), company 08246810 (retrieved 5 Aug 2026).",
+      "GLEIF: resolves to listed parent Yü Group plc, LEI 213800ACO9GDDBM7DS35, status active.",
+      "Companies House (audited FY2024): revenue £645.5m (+40%), adjusted EBITDA £48.8m, net cash £80.2m, 2.21 TWh delivered.",
+      "No EEX or ICE membership found: supplies via wholesale intermediaries (route-to-market gap).",
+    ],
+    suggestion: "Proceed",
+    suggestionBasis:
+      "Licensed GB supplier with scale and a clear market-access gap; strong origination fit.",
+    indicativeSizing: "~3,000 GWh firm plus flex",
+    demandProfileFit: "Good: B2B load with structured supply potential.",
+    keyRisk:
+      "Group-level LEI; the retail entity is a subsidiary, so confirm the contracting entity.",
+    realData: true,
+    regulatory: {
+      companyNumber: "08246810",
+      electricity: "Electricity supply (domestic and non-domestic)",
+      gas: "Gas supply (domestic and non-domestic)",
+      retrieved: "5 Aug 2026",
+      electricityUrl:
+        "https://www.ofgem.gov.uk/data/list-all-electricity-licensees-including-suppliers",
+      gasUrl:
+        "https://www.ofgem.gov.uk/data/list-all-gas-licensees-including-suppliers",
+    },
+    gleif: {
+      lei: "213800ACO9GDDBM7DS35",
+      legalName: "YÜ GROUP PLC",
+      companyNumber: "10004236",
+      status: "ACTIVE",
+      registrationStatus: "ISSUED",
+      corroboration: "FULLY_CORROBORATED",
+      hq: "Nottingham, GB",
+      lastUpdate: "2026-05-18",
+      note: "Yu Energy Retail Ltd resolves to its listed group Yü Group plc, which holds the LEI.",
+    },
+    financials: {
+      fiscalYear: "FY2024 (year ended 31 Dec 2024)",
+      revenue: "£645.5m",
+      revenueGrowth: "+40% YoY",
+      adjEbitda: "£48.8m",
+      profitBeforeTax: "£44.5m",
+      netCash: "£80.2m",
+      deliveredVolume: "2.21 TWh",
+      companyNumber: "10004236",
+      basis: "Yü Group plc, consolidated, audited",
+      source: "Companies House filed accounts (audited annual report FY2024)",
+      retrieved: "5 Aug 2026",
+      url: "https://www.yugroupplc.com/wp-content/uploads/2025/03/Yu-Group-plc-Annual-report-and-accounts-2024.pdf",
+    },
+  },
   {
     id: "vitalgas-nl",
     company: "VitalGas Nederland B.V.",
@@ -727,6 +856,7 @@ export function dataField(key: string): DataField | undefined {
 
 // Mocked raw field values per counterparty (id -> field key -> value).
 export const COUNTERPARTY_FIELDS: Record<string, Record<string, number>> = {
+  "yu-energy-gb": { netDebt: 650, netAssets: 520, revenue: 645, creditRating: 74, headcount: 800, memberships: 0, annualVolume: 2210 },
   "vitalgas-nl": { netDebt: 220, netAssets: 900, revenue: 2400, creditRating: 90, headcount: 1200, memberships: 3, annualVolume: 3400 },
   "delta-energie-be": { netDebt: 140, netAssets: 520, revenue: 1100, creditRating: 82, headcount: 640, memberships: 2, annualVolume: 2100 },
   "haven-utilities-nl": { netDebt: 90, netAssets: 300, revenue: 780, creditRating: 76, headcount: 410, memberships: 1, annualVolume: 1250 },
@@ -755,8 +885,8 @@ export interface Source {
 
 export const SOURCES: Source[] = [
   { key: "acer-ceremp", name: "ACER CEREMP register", tier: 1, retrieved: "today" },
-  { key: "ofgem", name: "Ofgem licensee list", tier: 1, retrieved: "this month" },
-  { key: "gleif", name: "GLEIF (LEI)", tier: 1, retrieved: "today" },
+  { key: "ofgem", name: "Ofgem licensee list", tier: 1, retrieved: "16 Jul 2026" },
+  { key: "gleif", name: "GLEIF (LEI)", tier: 1, retrieved: "live" },
   { key: "companies-house", name: "Companies House", tier: 1, retrieved: "2 days ago" },
   { key: "eex", name: "EEX participants", tier: 2, retrieved: "this week" },
   { key: "entsog", name: "ENTSOG / GIE", tier: 2, retrieved: "today" },

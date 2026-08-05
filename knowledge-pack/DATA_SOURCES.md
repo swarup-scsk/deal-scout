@@ -91,6 +91,16 @@ Prototype = mockable now; Production = real integration later.
 
 Recommended order: slice 1 (1, 3, 4, 5) and the configurable source registry (2, 8, part of 9) done; next the rest of 9 plus 10; then 6, 7, 11; then production feeds.
 
+## Live integration status (one real counterparty, for the CEO demo)
+
+One counterparty in the universe, **Yü Energy (Yu Energy Retail Ltd, company 08246810)**, is backed by **real, retrieved data**, not synthetic values:
+
+- **Ofgem (Tier 1), verified snapshot.** Confirmed on Ofgem's current registers as a licensed GB electricity supplier (domestic and non-domestic) and gas supplier (domestic and non-domestic). Ofgem publishes these as PDFs (no JSON API), so the record is a snapshot retrieved 5 Aug 2026 with the source list URLs shown. In production this refreshes via the data pipeline.
+- **GLEIF (Tier 1), live.** The deep-dive "Regulatory identity" card has a **Verify live** button that calls the GLEIF LEI API in the browser and resolves the entity to its listed parent **Yü Group plc, LEI 213800ACO9GDDBM7DS35** (status active, fully corroborated, Nottingham GB). A verified snapshot is the fallback if the live call fails. This also demonstrates entity resolution: the retail supplier resolves to the group that holds the LEI.
+- **Companies House (Tier 1), verified snapshot.** A "Financials" card shows the real audited FY2024 figures for Yü Group plc (company 10004236): revenue £645.5m (+40%), adjusted EBITDA £48.8m, profit before tax £44.5m, net cash £80.2m, 2.21 TWh delivered, with a link to the filed annual report. Not a live call: the Companies House API needs a secret key (must not sit in the client) and detailed figures live inside iXBRL accounts, so the honest approach is a dated, sourced snapshot; production wires it server-side.
+
+Everything else in the app remains synthetic. This proves the provenance model end to end against real regulators without standing up the full production feed set.
+
 ## Credentials and API keys (deferred, by design)
 
 The source registry governs which sources are trusted and how much. It does **not** hold credentials or API keys, and it should not. Secrets never belong in the client or in `localStorage`, and the prototype has no secure store. Live connections are a production concern: keys live in the server-side / n8n credential store or a vault managed by IT, and are wired when the Tier-1/2/3 connectors above are built. A read-only "connection status" panel (connected / not configured / managed by IT) is an optional future demo aid, with no key entry.

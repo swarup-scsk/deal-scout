@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  ExternalLink,
+  FileText,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 import {
   dqTone,
   fitBarClass,
@@ -156,6 +163,9 @@ function QualificationScreen() {
           )}
         </div>
       )}
+
+      <RegulatoryCard cp={cp} />
+      <FinancialsCard cp={cp} />
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         {/* LEFT */}
@@ -440,6 +450,228 @@ function DataQualityChip({ cp }: { cp: Counterparty }) {
     >
       Data quality {dq.score}
     </span>
+  );
+}
+
+type GleifLive = {
+  lei: string;
+  legalName: string;
+  status: string;
+  registrationStatus: string;
+  corroboration: string;
+  hq: string;
+  lastUpdate: string;
+};
+
+// Real, sourced regulatory identity for the featured counterparty. Ofgem data is
+// a verified snapshot; GLEIF is fetched live from the global LEI register on click.
+function RegulatoryCard({ cp }: { cp: Counterparty }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
+    "idle",
+  );
+  const [live, setLive] = useState<GleifLive | null>(null);
+  if (!cp.regulatory || !cp.gleif) return null;
+  const reg = cp.regulatory;
+  const snap = cp.gleif;
+
+  const verify = async () => {
+    setState("loading");
+    try {
+      const res = await fetch(
+        `https://api.gleif.org/api/v1/lei-records/${cp.lei}`,
+      );
+      if (!res.ok) throw new Error(String(res.status));
+      const json = await res.json();
+      const a = json?.data?.attributes;
+      const e = a?.entity;
+      const r = a?.registration;
+      const addr = e?.legalAddress;
+      setLive({
+        lei: a?.lei ?? cp.lei,
+        legalName: e?.legalName?.name ?? snap.legalName,
+        status: e?.status ?? snap.status,
+        registrationStatus: r?.status ?? snap.registrationStatus,
+        corroboration: r?.corroborationLevel ?? snap.corroboration,
+        hq: addr ? `${addr.city}, ${addr.country}` : snap.hq,
+        lastUpdate: (r?.lastUpdateDate ?? "").slice(0, 10) || snap.lastUpdate,
+      });
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  };
+
+  const shown: GleifLive = live ?? {
+    lei: snap.lei,
+    legalName: snap.legalName,
+    status: snap.status,
+    registrationStatus: snap.registrationStatus,
+    corroboration: snap.corroboration,
+    hq: snap.hq,
+    lastUpdate: snap.lastUpdate,
+  };
+
+  return (
+    <Card className="space-y-4 border-success/30 p-5">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="h-5 w-5 text-success" />
+        <h3 className="font-semibold text-foreground">Regulatory identity</h3>
+        <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
+          Real data, verified sources
+        </span>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+              Tier 1
+            </span>
+            <span className="text-sm font-semibold text-foreground">
+              Ofgem licensee register
+            </span>
+          </div>
+          <div className="space-y-1.5 text-sm text-muted-foreground">
+            <div>
+              <span className="font-medium text-foreground">
+                Company number:
+              </span>{" "}
+              {reg.companyNumber}
+            </div>
+            {reg.electricity && <div>{reg.electricity}</div>}
+            {reg.gas && <div>{reg.gas}</div>}
+            <div className="text-[11px]">Retrieved {reg.retrieved}</div>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
+            <a
+              className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+              href={reg.electricityUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Electricity list <ExternalLink className="h-3 w-3" />
+            </a>
+            <a
+              className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+              href={reg.gasUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Gas list <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+                Tier 1
+              </span>
+              <span className="text-sm font-semibold text-foreground">
+                GLEIF (LEI)
+              </span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={verify}
+              disabled={state === "loading"}
+            >
+              {state === "loading" ? (
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Verifying
+                </>
+              ) : state === "done" ? (
+                <>
+                  <BadgeCheck className="mr-1.5 h-3.5 w-3.5 text-success" /> Verified
+                  live
+                </>
+              ) : (
+                "Verify live"
+              )}
+            </Button>
+          </div>
+          {state === "idle" ? (
+            <p className="text-sm text-muted-foreground">
+              Look up the legal entity in the global LEI register in real time.
+            </p>
+          ) : (
+            <div className="space-y-1.5 text-sm text-muted-foreground">
+              <div className="font-medium text-foreground">
+                {shown.legalName}
+              </div>
+              <div>LEI {shown.lei}</div>
+              <div>
+                Status: {shown.status} · {shown.registrationStatus}
+              </div>
+              <div>{shown.corroboration.replace(/_/g, " ").toLowerCase()}</div>
+              <div>
+                {shown.hq} · updated {shown.lastUpdate}
+              </div>
+              {state === "error" && (
+                <div className="text-[11px] text-warning">
+                  Live lookup unavailable; showing last verified record.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      {snap.note && (
+        <p className="text-[11px] text-muted-foreground">{snap.note}</p>
+      )}
+    </Card>
+  );
+}
+
+// Real filed financials (Companies House / audited accounts), verified snapshot.
+function FinancialsCard({ cp }: { cp: Counterparty }) {
+  const f = cp.financials;
+  if (!f) return null;
+  const rows = [
+    { label: "Revenue", value: f.revenue, sub: f.revenueGrowth },
+    { label: "Adjusted EBITDA", value: f.adjEbitda },
+    { label: "Profit before tax", value: f.profitBeforeTax },
+    { label: "Net cash", value: f.netCash },
+    { label: "Delivered volume", value: f.deliveredVolume },
+  ].filter((r) => r.value);
+
+  return (
+    <Card className="space-y-4 border-success/30 p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <FileText className="h-5 w-5 text-success" />
+        <h3 className="font-semibold text-foreground">Financials</h3>
+        <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
+          Companies House · Tier 1 · verified snapshot
+        </span>
+        <span className="text-xs text-muted-foreground">{f.fiscalYear}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        {rows.map((r) => (
+          <div key={r.label}>
+            <div className="text-xs text-muted-foreground">{r.label}</div>
+            <div className="text-lg font-semibold text-foreground">
+              {r.value}
+            </div>
+            {r.sub && <div className="text-[11px] text-success">{r.sub}</div>}
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+        <span>
+          {f.basis}. {f.source}. Retrieved {f.retrieved}.
+        </span>
+        <a
+          className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+          href={f.url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Annual report <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+    </Card>
   );
 }
 

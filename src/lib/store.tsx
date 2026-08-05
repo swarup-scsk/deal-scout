@@ -14,6 +14,7 @@ import {
   dataQuality,
   defaultConfig,
   defaultSourceRegistry,
+  FEATURED_COUNTERPARTY_ID,
   fitScore,
   inheritConfig,
   scoreBreakdown,
@@ -301,7 +302,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const rawOps = localStorage.getItem(OPS_KEY);
       if (rawOps) {
         const o = JSON.parse(rawOps);
-        if (Array.isArray(o.counterparties)) setCounterpartyList(o.counterparties);
+        if (Array.isArray(o.counterparties)) {
+          // Non-destructive: make sure the featured (real-data) counterparty is
+          // always present, even if the saved universe predates it.
+          let list = o.counterparties as Counterparty[];
+          if (!list.some((c) => c.id === FEATURED_COUNTERPARTY_ID)) {
+            const featured = seedCounterparties.find(
+              (c) => c.id === FEATURED_COUNTERPARTY_ID,
+            );
+            if (featured) list = [featured, ...list];
+          }
+          setCounterpartyList(list);
+        }
         if (Array.isArray(o.shortlists)) setShortlists(o.shortlists);
         if (Array.isArray(o.accounts)) setAccounts(o.accounts);
         if (Array.isArray(o.contacts)) setContacts(o.contacts);
