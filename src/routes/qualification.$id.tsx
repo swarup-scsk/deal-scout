@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight } from "lucide-react";
 import {
-  dataQuality,
   dqTone,
   fitBarClass,
   fitColorClass,
@@ -19,7 +18,7 @@ import { AddToShortlist } from "@/components/AddToShortlist";
 export const Route = createFileRoute("/qualification/$id")({
   head: () => ({
     meta: [
-      { title: "Qualify counterparty — SEE Origination Scout" },
+      { title: "Qualify counterparty - SEE Origination Scout" },
       { name: "description", content: "Qualify the shortlisted counterparty." },
       { name: "robots", content: "noindex" },
     ],
@@ -425,6 +424,7 @@ function Note({ label, value }: { label: string; value: string }) {
 }
 
 function DataQualityChip({ cp }: { cp: Counterparty }) {
+  const { dataQuality } = useStore();
   const dq = dataQuality(cp);
   const tone = dqTone(dq.score);
   const cls =

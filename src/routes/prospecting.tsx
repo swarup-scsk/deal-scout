@@ -44,7 +44,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  dataQuality,
   dqTone,
   fitBarClass,
   fitColorClass,
@@ -59,7 +58,7 @@ export const Route = createFileRoute("/prospecting")({
   }),
   head: () => ({
     meta: [
-      { title: "Universe — SEE Origination Scout" },
+      { title: "Universe - SEE Origination Scout" },
       {
         name: "description",
         content: "Browse the counterparty universe and apply scenarios to score.",
@@ -79,8 +78,15 @@ const BUSINESS_LINES: BusinessLineType[] = [
 ];
 
 function UniverseScreen() {
-  const { counterparties, addCounterparty, config, scenarios, accountForCounterparty, scoreFor } =
-    useStore();
+  const {
+    counterparties,
+    addCounterparty,
+    config,
+    scenarios,
+    accountForCounterparty,
+    scoreFor,
+    dataQuality,
+  } = useStore();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [filter, setFilter] = useState("");

@@ -775,24 +775,59 @@ export const FIELD_SOURCE: Record<string, string> = {
   annualVolume: "entsog",
 };
 
-export function sourceForField(fieldKey: string): Source | undefined {
-  return SOURCES.find((s) => s.key === FIELD_SOURCE[fieldKey]);
+// Per-tier trust weight applied to a source when scoring data quality (0-1).
+export const DEFAULT_TIER_WEIGHTS: Record<number, number> = {
+  1: 1,
+  2: 0.82,
+  3: 0.58,
+  4: 0.32,
+};
+
+// The configurable source registry: which sources exist, how much each tier is
+// trusted, and which source backs each data field. Seeded from the constants
+// above; persisted in the config blob and edited on the Sources admin screen.
+export interface SourceRegistry {
+  sources: Source[];
+  tierWeights: Record<number, number>;
+  fieldSource: Record<string, string>; // data-field key -> source key
 }
 
-export function tierWeight(tier: number): number {
-  return tier === 1 ? 1 : tier === 2 ? 0.82 : tier === 3 ? 0.58 : 0.32;
+export const defaultSourceRegistry: SourceRegistry = {
+  sources: SOURCES,
+  tierWeights: DEFAULT_TIER_WEIGHTS,
+  fieldSource: FIELD_SOURCE,
+};
+
+export function sourceForField(
+  fieldKey: string,
+  reg: SourceRegistry = defaultSourceRegistry,
+): Source | undefined {
+  const key = reg.fieldSource[fieldKey];
+  return reg.sources.find((s) => s.key === key);
+}
+
+export function tierWeight(
+  tier: number,
+  weights: Record<number, number> = DEFAULT_TIER_WEIGHTS,
+): number {
+  return weights[tier] ?? DEFAULT_TIER_WEIGHTS[tier] ?? 0.32;
 }
 
 // Data-quality (confidence) score 0-100: how well-evidenced a counterparty is.
 // Separate from fit (how attractive). Driven by source tier of its fields + LEI match.
-export function dataQuality(cp: Counterparty): { score: number; hasLei: boolean } {
+export function dataQuality(
+  cp: Counterparty,
+  reg: SourceRegistry = defaultSourceRegistry,
+): { score: number; hasLei: boolean } {
   const hasLei = !!cp.lei && cp.lei !== "n/a";
   const fields = COUNTERPARTY_FIELDS[cp.id];
   const present = fields ? Object.keys(fields) : [];
   if (present.length === 0) return { score: hasLei ? 40 : 20, hasLei };
   const tw =
-    present.reduce((s, f) => s + tierWeight(sourceForField(f)?.tier ?? 4), 0) /
-    present.length;
+    present.reduce(
+      (s, f) => s + tierWeight(sourceForField(f, reg)?.tier ?? 4, reg.tierWeights),
+      0,
+    ) / present.length;
   const idBonus = hasLei ? 1 : 0.7;
   return { score: Math.min(100, Math.round(tw * 100 * idBonus)), hasLei };
 }
@@ -921,6 +956,7 @@ export interface ScoreBreakdown {
 export function scoreBreakdown(
   criteria: EffectiveCriterion[],
   getValue: (field: string) => number | undefined,
+  reg: SourceRegistry = defaultSourceRegistry,
 ): ScoreBreakdown {
   let dealBlocked = false;
   let fitNum = 0;
@@ -936,7 +972,7 @@ export function scoreBreakdown(
       if (!s.enabled) continue;
       const raw = getValue(s.dataField);
       const fld = dataField(s.dataField);
-      const src = sourceForField(s.dataField);
+      const src = sourceForField(s.dataField, reg);
       let skipped = false;
       let ss = 0;
       let subBlocked = false;

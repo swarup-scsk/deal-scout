@@ -11,10 +11,13 @@ import {
   counterparties as seedCounterparties,
   counterpartyFieldValue,
   criteriaLibrary as seedLibrary,
+  dataQuality,
   defaultConfig,
+  defaultSourceRegistry,
   fitScore,
   inheritConfig,
   scoreBreakdown,
+  sourceForField,
   scenarios as seedScenarios,
   type Account,
   type AccountStatus,
@@ -35,6 +38,8 @@ import {
   type ScenarioConfig,
   type ScoreBreakdown,
   type Shortlist,
+  type Source,
+  type SourceRegistry,
   type SubCriterion,
 } from "./data";
 
@@ -143,6 +148,16 @@ interface StoreValue {
   ) => void;
   deleteSubCriterion: (critId: string, subId: string) => void;
 
+  // Source registry (data provenance config). Admin-managed; config data.
+  sourceRegistry: SourceRegistry;
+  addSource: () => void;
+  updateSource: (key: string, patch: Partial<Omit<Source, "key">>) => void;
+  deleteSource: (key: string) => void;
+  setFieldSource: (fieldKey: string, sourceKey: string) => void;
+  setTierWeight: (tier: number, weight: number) => void;
+  sourceForField: (fieldKey: string) => Source | undefined;
+  dataQuality: (cp: Counterparty) => { score: number; hasLei: boolean };
+
   // Scenario composition (rules engine, Layer 2). Overrides on top of the library.
   resolveScenario: (scenarioId: string) => EffectiveCriterion[];
   scoreFor: (counterpartyId: string, scenarioId: string) => ScoreBreakdown;
@@ -232,6 +247,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [scenarioRules, setScenarioRules] = useState<
     Record<string, ScenarioRule>
   >({});
+  const [sourceRegistry, setSourceRegistry] =
+    useState<SourceRegistry>(defaultSourceRegistry);
   const [counterpartyList, setCounterpartyList] =
     useState<Counterparty[]>(seedCounterparties);
   const [shortlists, setShortlists] = useState<Shortlist[]>([]);
@@ -258,6 +275,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (s.commTemplates) setCommTemplateList(s.commTemplates);
         if (s.criteriaLibrary) setCriteriaLibraryList(s.criteriaLibrary);
         if (s.scenarioRules) setScenarioRules(s.scenarioRules);
+        if (s.sourceRegistry) setSourceRegistry(s.sourceRegistry);
         setSavedSnap(raw);
       } else {
         setSavedSnap(
@@ -271,6 +289,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             commTemplates: seedTemplates,
             criteriaLibrary: seedLibrary,
             scenarioRules: {},
+            sourceRegistry: defaultSourceRegistry,
           }),
         );
       }
@@ -543,6 +562,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ),
     );
 
+  // --- Source registry (data provenance config) ---------------------------
+  const addSource = () =>
+    setSourceRegistry((r) => ({
+      ...r,
+      sources: [
+        ...r.sources,
+        { key: uid("src"), name: "New source", tier: 3, retrieved: "unverified" },
+      ],
+    }));
+  const updateSource = (key: string, patch: Partial<Omit<Source, "key">>) =>
+    setSourceRegistry((r) => ({
+      ...r,
+      sources: r.sources.map((s) => (s.key === key ? { ...s, ...patch } : s)),
+    }));
+  const deleteSource = (key: string) =>
+    setSourceRegistry((r) => ({
+      ...r,
+      sources: r.sources.filter((s) => s.key !== key),
+      // Drop any field mapping that pointed at the removed source.
+      fieldSource: Object.fromEntries(
+        Object.entries(r.fieldSource).filter(([, v]) => v !== key),
+      ),
+    }));
+  const setFieldSource = (fieldKey: string, sourceKey: string) =>
+    setSourceRegistry((r) => ({
+      ...r,
+      fieldSource: { ...r.fieldSource, [fieldKey]: sourceKey },
+    }));
+  const setTierWeight = (tier: number, weight: number) =>
+    setSourceRegistry((r) => ({
+      ...r,
+      tierWeights: { ...r.tierWeights, [tier]: weight },
+    }));
+  const sourceForFieldBound = (fieldKey: string) =>
+    sourceForField(fieldKey, sourceRegistry);
+  const dataQualityBound = (cp: Counterparty) => dataQuality(cp, sourceRegistry);
+
   // --- Scenario composition (rules engine, Layer 2) -----------------------
   const resolveScenario = (scenarioId: string): EffectiveCriterion[] => {
     const rule = scenarioRules[scenarioId];
@@ -574,8 +630,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   };
   const scoreFor = (counterpartyId: string, scenarioId: string) =>
-    scoreBreakdown(resolveScenario(scenarioId), (f) =>
-      counterpartyFieldValue(counterpartyId, f),
+    scoreBreakdown(
+      resolveScenario(scenarioId),
+      (f) => counterpartyFieldValue(counterpartyId, f),
+      sourceRegistry,
     );
   const setScenarioCritOverride = (
     scenarioId: string,
@@ -838,6 +896,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     commTemplates: commTemplateList,
     criteriaLibrary: criteriaLibraryList,
     scenarioRules,
+    sourceRegistry,
   });
   const dirty = hydrated && currentSnap !== savedSnap;
   const saveAll = () => {
@@ -891,6 +950,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addSubCriterion,
     updateSubCriterion,
     deleteSubCriterion,
+    sourceRegistry,
+    addSource,
+    updateSource,
+    deleteSource,
+    setFieldSource,
+    setTierWeight,
+    sourceForField: sourceForFieldBound,
+    dataQuality: dataQualityBound,
     resolveScenario,
     scoreFor,
     setScenarioCritOverride,

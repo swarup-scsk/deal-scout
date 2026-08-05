@@ -1,6 +1,6 @@
 # Decisions and Gotchas
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-08-05
 
 ## Decisions (lightweight ADR - what, why)
 
@@ -28,6 +28,7 @@
 | D21 | **Two weights, in two places.** Sub-criterion weight ("Importance", 1-5) is defined in the **Library** and tweakable per scenario. Criterion weight (1-5) is **not in the Library**; it is a **scenario-level control the originator sets** (default equal). Fit = weighted avg of criterion scores (by criterion weight); criterion score = weighted avg of sub-scores (by sub weight). The attached sub-criterion form is the locked Library sub-criterion editor. | Owner (30 Jul): originators adjust both criterion weights and sub-criterion Importance when composing a scenario; the library owns sub weights + logic. |
 | D22 | **Design direction = the SEE UX-leadership spec** (`design/SEE-design-direction.md`): Apple-neutral surfaces, SEEL spectrum as the only accent (blue #0091d4, green #00c29d), system font, sentence case everywhere, 0.5px hairlines, soft shadows, segmented controls, one gradient per screen. Adopt app-wide in the re-skin iteration. | SEE UX leadership set a portable direction for all SEE apps; Scout must align. |
 | D20 | Rules engine is **two-tier**: Layer 1 **library** (criteria, sub-criteria, deterministic logic, default weights) is **Admin-only** and shared; Layer 2 **origination configuration** lets the **originator (User)** pull library items into a scenario and tweak locally (select on/off, adjust thresholds and weights) as per-scenario overrides, with reset-to-library. Revises D18's "Admin-only for everything". | Owner clarification (30 Jul): admin owns definitions; originators compose and fine-tune per their requirement. |
+| D23 | **Source registry is configurable** (tiers, per-tier weight, and field-to-source mapping) via a `/sources` admin screen, persisted in the config blob as `sourceRegistry`. **Credentials / API keys are deliberately excluded** from the app and deferred to the production server-side / n8n credential store. | Owner (5 Aug): making trusted sources and their weights configurable strengthens the traceability story and is low-risk; secrets must never live in the client or `localStorage`, so real connection management belongs to the production integration layer, not the prototype. |
 
 ## Gotchas (traps - do not relearn these)
 

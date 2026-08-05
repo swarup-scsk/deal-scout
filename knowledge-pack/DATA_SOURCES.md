@@ -66,9 +66,9 @@ Net effect: the LLM accelerates discovery and drafting, but the universe is anch
 Prototype = mockable now; Production = real integration later.
 
 **Foundation**
-1. Per-field provenance: value + source + tier + URL + retrieved date. (Prototype: **built** as a source registry + FIELD_SOURCE.)
-2. Source registry with tier and weight, admin-managed. (Prototype: **built** as `SOURCES`; admin editing pending.)
-3. Data-quality (confidence) score per field and per counterparty. (Prototype: **built** as `dataQuality`.)
+1. Per-field provenance: value + source + tier + URL + retrieved date. (Prototype: **built** as a source registry + field-to-source mapping.)
+2. Source registry with tier and weight, admin-managed. (Prototype: **built** - the `/sources` admin screen edits sources, their tier, the per-tier weight, and which source backs each field; persisted in the config blob as `sourceRegistry`.)
+3. Data-quality (confidence) score per field and per counterparty. (Prototype: **built** as `dataQuality`, now driven by the configurable tier weights.)
 
 **Surfacing**
 4. Provenance on the deep dive: source chip + tier + retrieved per sub-score. (**Built**.)
@@ -77,8 +77,8 @@ Prototype = mockable now; Production = real integration later.
 7. Conflict indicator: competing source values + which won. (Pending.)
 
 **Guardrails / workflow**
-8. Source allow-list, admin-editable. (Prototype config; production-enforced.)
-9. Source-quality weighting in entity resolution + scoring (Tier 1 dominates; Tier 4 cannot override Tier 1). (Pending.)
+8. Source allow-list, admin-editable. (Prototype: **built** - the source registry on `/sources` is the allow-list; production-enforced later.)
+9. Source-quality weighting in entity resolution + scoring (Tier 1 dominates; Tier 4 cannot override Tier 1). (Partial: tier weights are now configurable and feed the data-quality score; applying precedence in entity-resolution / conflict handling is pending.)
 10. Human-in-the-loop review gate: needs-review flag when DQ low / no LEI / Tier-1 conflict / Tier 3-4 only, with logged sign-off. (Pending.)
 11. Freshness and re-verify: stale-field flags vs source cadence, last-refreshed, re-verify action. (Pending.)
 
@@ -89,4 +89,8 @@ Prototype = mockable now; Production = real integration later.
 15. Allow-listed RAG pipeline with prompt discipline and provenance capture at gather time.
 16. Scheduled refresh per source cadence.
 
-Recommended order: slice 1 (1, 3, 4, 5) done; next slice 8, 9, 10; then 6, 7, 11; then production feeds.
+Recommended order: slice 1 (1, 3, 4, 5) and the configurable source registry (2, 8, part of 9) done; next the rest of 9 plus 10; then 6, 7, 11; then production feeds.
+
+## Credentials and API keys (deferred, by design)
+
+The source registry governs which sources are trusted and how much. It does **not** hold credentials or API keys, and it should not. Secrets never belong in the client or in `localStorage`, and the prototype has no secure store. Live connections are a production concern: keys live in the server-side / n8n credential store or a vault managed by IT, and are wired when the Tier-1/2/3 connectors above are built. A read-only "connection status" panel (connected / not configured / managed by IT) is an optional future demo aid, with no key entry.

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import {
   Building2,
   CircleHelp,
+  Database,
   Home,
   Layers,
   ListChecks,
@@ -37,6 +38,7 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
     items: [
       { to: "/scenarios", label: "Scenarios", icon: SlidersHorizontal },
       { to: "/library", label: "Library", icon: Layers },
+      { to: "/sources", label: "Sources", icon: Database },
       { to: "/templates", label: "Templates", icon: Mail },
     ],
   },

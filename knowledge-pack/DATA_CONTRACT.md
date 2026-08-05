@@ -73,7 +73,8 @@ Persistence is split into two keys with different save models.
   "scenarioList":          [ …Scenario ],
   "commTemplates":         [ …CommTemplate ],
   "criteriaLibrary":       [ …LibraryCriterion ],
-  "scenarioRules":         { [scenarioId]: { criteria: { [libraryId]: CritOverride } } }
+  "scenarioRules":         { [scenarioId]: { criteria: { [libraryId]: CritOverride } } },
+  "sourceRegistry":        { sources: [ …Source ], tierWeights: { 1..4: number }, fieldSource: { [fieldKey]: sourceKey } }
 }
 ```
 
@@ -110,11 +111,15 @@ Contact { id, accountId, name, role, email?, phone?, linkedin?, source: "auto"|"
 CommLog { id, accountId, channel: "email"|"linkedin"|"note", subject?, body, timestamp }
 Note    { id, accountId, body, author, createdAt, updatedAt }   // ops blob; account notes, independent of the comms log
 
-// Data sources / provenance (constants in data.ts; see DATA_SOURCES.md)
-Source  { key, name, tier: 1|2|3|4, retrieved }                 // SOURCES catalogue
-FIELD_SOURCE: Record<fieldKey, sourceKey>                        // which source backs each data field
-dataQuality(cp) -> { score, hasLei }                            // 0-100 evidence/confidence, separate from fit
-// scoreBreakdown sub items now also carry sourceTier + retrieved for the deep-dive provenance
+// Data sources / provenance (see DATA_SOURCES.md). SOURCES / FIELD_SOURCE / DEFAULT_TIER_WEIGHTS
+// are seed constants in data.ts; the live values are the configurable SourceRegistry (config blob).
+Source          { key, name, tier: 1|2|3|4, retrieved }
+SourceRegistry  { sources: Source[], tierWeights: Record<tier, number>, fieldSource: Record<fieldKey, sourceKey> }  // persisted as sourceRegistry
+sourceForField(fieldKey, reg?) -> Source | undefined            // reg defaults to defaultSourceRegistry
+tierWeight(tier, weights?) -> number                            // 0-1 trust weight per tier
+dataQuality(cp, reg?) -> { score, hasLei }                      // 0-100 evidence/confidence, separate from fit
+// The store binds sourceForField/dataQuality to the live registry and passes it into scoreBreakdown;
+// scoreBreakdown sub items carry sourceTier + retrieved for the deep-dive provenance. Edited on /sources.
 
 CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob; scenarioId undefined = universal
 

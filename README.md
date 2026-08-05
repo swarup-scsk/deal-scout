@@ -56,6 +56,7 @@ git push
 | `src/routes/templates.tsx` | Communication template management (Admin). |
 | `src/routes/library.tsx` | Criteria library (Admin): rules-engine sub-criterion editor (Layer 1). |
 | `src/routes/scenarios.tsx` | Scenario composition: pick/override library criteria per scenario (Layer 2). |
+| `src/routes/sources.tsx` | Data sources admin (Configuration): source registry, per-tier weights, field-to-source mapping (`sourceRegistry`). |
 | `src/routes/faq.tsx` | Business-user "How it works" FAQ (data flow, source tiers, guardrails). |
 | `src/components/AddToShortlist.tsx` | Reusable add-to-shortlist dialog (table + deep dive). |
 | `src/lib/data.ts` | Domain types + mocked seed data (see `knowledge-pack/DATA_CONTRACT.md`). |

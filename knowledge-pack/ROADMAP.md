@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-08-05
 **Format:** Now / Next / Later, mapped to phases. Concrete items only.
 
 ## Done (POC → Prototype foundation)
@@ -31,6 +31,7 @@
 - Data sources, traceability and guardrails documented in `DATA_SOURCES.md` (authoritative registers by quality tier, provenance model, LLM augmentation guardrails). Informs production data wiring.
 - Data-sources epic, slice 1 built (mocked): a **source registry** with quality tiers (T1-T4) in `data.ts`, **per-field provenance** (source name + tier + retrieved) shown in the deep-dive breakdown, and a per-counterparty **data-quality score** (`dataQuality`) surfaced as a chip on the deep dive and a "Data quality" column on the Counterparties table. Separate from fit.
 - Business-user FAQ page (`/faq`, "How it works" under Help in the nav): plain-language flow strip, source-tier legend, and an accordion covering data sources, tiers, fit vs data quality, scoring, traceability, AI guardrails, who configures what, and mocked-data status.
+- Data-sources epic, slice 2 (configurable source registry): `/sources` admin screen to add/edit/remove sources, set each source's tier, tune the per-tier trust weight, and map each data field to a source. Registry persists in the config blob as `sourceRegistry`; `sourceForField` / `tierWeight` / `dataQuality` / `scoreBreakdown` now read the live registry (backward-compatible defaults). Credentials / API keys deliberately excluded (production / server-side). Nav item added under Configuration.
 
 ## Now (current prototype hardening)
 
@@ -40,7 +41,7 @@
 
 - Design re-skin polish (optional): true 0.5px hairlines, soft two-layer card shadows, and flip segmented-control active state to white-pill + accent-text per the spec. Token re-skin is done; these are finishing touches.
 - Rules engine polish: scenario-level impact preview panel (Strong/Borderline/Blocked, movers vs saved); apply multiple scenarios; per-scenario fit-band thresholds.
-- **Data-sources epic, remaining slices** (feature list in `DATA_SOURCES.md`): slice 1 (provenance + data-quality) done; next are the source allow-list + tier weighting applied in scoring/merge, a conflict indicator, a human-in-the-loop review gate, and freshness/re-verify. Production integrations (Tier-1 register connectors keyed on LEI, Tier-2 corroboration, Tier-3 enrichment, allow-listed RAG, scheduled refresh) are Later.
+- **Data-sources epic, remaining slices** (feature list in `DATA_SOURCES.md`): slice 1 (provenance + data-quality) and slice 2 (configurable source registry: tiers, weights, field mapping, allow-list) done; next are applying source-quality precedence in entity-resolution / conflict handling, a conflict indicator, a human-in-the-loop review gate, and freshness/re-verify. Production integrations (Tier-1 register connectors keyed on LEI, Tier-2 corroboration, Tier-3 enrichment, allow-listed RAG, scheduled refresh) are Later, and own credential / API-key handling server-side.
 - **CRM notes**: separate, timestamped, attributed, editable/deletable notes on the account, independent of the comms log (no funnel).
 - **Value model as ranges** (conversion 8-12%, deal ~500K, 4 users) for the exec business-case slide.
 - **Deterministic scoring engine**: superseded by the rules engine above; keep the "why this score" breakdown panel requirement.
