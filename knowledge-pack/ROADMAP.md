@@ -30,6 +30,7 @@
 - CRM notes (D19) built: a separate Notes card on the account (`/crm/:accountId`), timestamped and attributed, editable and deletable, independent of the comms log. Persists under the ops blob (`notes`).
 - Data sources, traceability and guardrails documented in `DATA_SOURCES.md` (authoritative registers by quality tier, provenance model, LLM augmentation guardrails). Informs production data wiring.
 - Data-sources epic, slice 1 built (mocked): a **source registry** with quality tiers (T1-T4) in `data.ts`, **per-field provenance** (source name + tier + retrieved) shown in the deep-dive breakdown, and a per-counterparty **data-quality score** (`dataQuality`) surfaced as a chip on the deep dive and a "Data quality" column on the Counterparties table. Separate from fit.
+- Business-user FAQ page (`/faq`, "How it works" under Help in the nav): plain-language flow strip, source-tier legend, and an accordion covering data sources, tiers, fit vs data quality, scoring, traceability, AI guardrails, who configures what, and mocked-data status.
 
 ## Now (current prototype hardening)
 

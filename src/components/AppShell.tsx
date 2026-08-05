@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   Building2,
+  CircleHelp,
   Home,
   Layers,
   ListChecks,
@@ -38,6 +39,10 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
       { to: "/library", label: "Library", icon: Layers },
       { to: "/templates", label: "Templates", icon: Mail },
     ],
+  },
+  {
+    label: "Help",
+    items: [{ to: "/faq", label: "How it works", icon: CircleHelp }],
   },
 ];
 
