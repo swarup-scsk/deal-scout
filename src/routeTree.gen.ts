@@ -9,38 +9,29 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as CrmRouteImport } from './routes/crm'
-import { Route as ProspectingRouteImport } from './routes/prospecting'
-import { Route as ScenarioRouteImport } from './routes/scenario'
-import { Route as ShortlistsRouteImport } from './routes/shortlists'
+import { Route as TemplatesRouteImport } from './routes/templates'
+import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as CrmAccountIdRouteImport } from './routes/crm.$accountId'
+import { Route as ShortlistsRouteImport } from './routes/shortlists'
+import { Route as ScenariosRouteImport } from './routes/scenarios'
+import { Route as ScenarioRouteImport } from './routes/scenario'
+import { Route as ProspectingRouteImport } from './routes/prospecting'
+import { Route as LibraryRouteImport } from './routes/library'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as CrmRouteImport } from './routes/crm'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as CrmIndexRouteImport } from './routes/crm.index'
 import { Route as QualificationIdRouteImport } from './routes/qualification.$id'
+import { Route as CrmAccountIdRouteImport } from './routes/crm.$accountId'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const TemplatesRoute = TemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CrmRoute = CrmRouteImport.update({
-  id: '/crm',
-  path: '/crm',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProspectingRoute = ProspectingRouteImport.update({
-  id: '/prospecting',
-  path: '/prospecting',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScenarioRoute = ScenarioRouteImport.update({
-  id: '/scenario',
-  path: '/scenario',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShortlistsRoute = ShortlistsRouteImport.update({
-  id: '/shortlists',
-  path: '/shortlists',
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -48,9 +39,49 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CrmAccountIdRoute = CrmAccountIdRouteImport.update({
-  id: '/$accountId',
-  path: '/$accountId',
+const ShortlistsRoute = ShortlistsRouteImport.update({
+  id: '/shortlists',
+  path: '/shortlists',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScenariosRoute = ScenariosRouteImport.update({
+  id: '/scenarios',
+  path: '/scenarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScenarioRoute = ScenarioRouteImport.update({
+  id: '/scenario',
+  path: '/scenario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProspectingRoute = ProspectingRouteImport.update({
+  id: '/prospecting',
+  path: '/prospecting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmRoute = CrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrmIndexRoute = CrmIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => CrmRoute,
 } as any)
 const QualificationIdRoute = QualificationIdRouteImport.update({
@@ -58,116 +89,139 @@ const QualificationIdRoute = QualificationIdRouteImport.update({
   path: '/qualification/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CrmAccountIdRoute = CrmAccountIdRouteImport.update({
+  id: '/$accountId',
+  path: '/$accountId',
+  getParentRoute: () => CrmRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/crm': typeof CrmRouteWithChildren
+  '/faq': typeof FaqRoute
+  '/library': typeof LibraryRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/scenarios': typeof ScenariosRoute
   '/shortlists': typeof ShortlistsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sources': typeof SourcesRoute
+  '/templates': typeof TemplatesRoute
   '/crm/$accountId': typeof CrmAccountIdRoute
   '/qualification/$id': typeof QualificationIdRoute
+  '/crm/': typeof CrmIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/crm': typeof CrmRouteWithChildren
+  '/faq': typeof FaqRoute
+  '/library': typeof LibraryRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/scenarios': typeof ScenariosRoute
   '/shortlists': typeof ShortlistsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sources': typeof SourcesRoute
+  '/templates': typeof TemplatesRoute
   '/crm/$accountId': typeof CrmAccountIdRoute
   '/qualification/$id': typeof QualificationIdRoute
+  '/crm': typeof CrmIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/crm': typeof CrmRouteWithChildren
+  '/faq': typeof FaqRoute
+  '/library': typeof LibraryRoute
   '/prospecting': typeof ProspectingRoute
   '/scenario': typeof ScenarioRoute
+  '/scenarios': typeof ScenariosRoute
   '/shortlists': typeof ShortlistsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/sources': typeof SourcesRoute
+  '/templates': typeof TemplatesRoute
   '/crm/$accountId': typeof CrmAccountIdRoute
   '/qualification/$id': typeof QualificationIdRoute
+  '/crm/': typeof CrmIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/crm'
+    | '/faq'
+    | '/library'
     | '/prospecting'
     | '/scenario'
+    | '/scenarios'
     | '/shortlists'
     | '/sitemap.xml'
+    | '/sources'
+    | '/templates'
     | '/crm/$accountId'
     | '/qualification/$id'
+    | '/crm/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/crm'
+    | '/faq'
+    | '/library'
     | '/prospecting'
     | '/scenario'
+    | '/scenarios'
     | '/shortlists'
     | '/sitemap.xml'
+    | '/sources'
+    | '/templates'
     | '/crm/$accountId'
     | '/qualification/$id'
+    | '/crm'
   id:
     | '__root__'
     | '/'
     | '/crm'
+    | '/faq'
+    | '/library'
     | '/prospecting'
     | '/scenario'
+    | '/scenarios'
     | '/shortlists'
     | '/sitemap.xml'
+    | '/sources'
+    | '/templates'
     | '/crm/$accountId'
     | '/qualification/$id'
+    | '/crm/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CrmRoute: typeof CrmRouteWithChildren
+  FaqRoute: typeof FaqRoute
+  LibraryRoute: typeof LibraryRoute
   ProspectingRoute: typeof ProspectingRoute
   ScenarioRoute: typeof ScenarioRoute
+  ScenariosRoute: typeof ScenariosRoute
   ShortlistsRoute: typeof ShortlistsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SourcesRoute: typeof SourcesRoute
+  TemplatesRoute: typeof TemplatesRoute
   QualificationIdRoute: typeof QualificationIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/templates': {
+      id: '/templates'
+      path: '/templates'
+      fullPath: '/templates'
+      preLoaderRoute: typeof TemplatesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/crm': {
-      id: '/crm'
-      path: '/crm'
-      fullPath: '/crm'
-      preLoaderRoute: typeof CrmRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/prospecting': {
-      id: '/prospecting'
-      path: '/prospecting'
-      fullPath: '/prospecting'
-      preLoaderRoute: typeof ProspectingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/scenario': {
-      id: '/scenario'
-      path: '/scenario'
-      fullPath: '/scenario'
-      preLoaderRoute: typeof ScenarioRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/shortlists': {
-      id: '/shortlists'
-      path: '/shortlists'
-      fullPath: '/shortlists'
-      preLoaderRoute: typeof ShortlistsRouteImport
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -177,11 +231,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/crm/$accountId': {
-      id: '/crm/$accountId'
-      path: '/$accountId'
-      fullPath: '/crm/$accountId'
-      preLoaderRoute: typeof CrmAccountIdRouteImport
+    '/shortlists': {
+      id: '/shortlists'
+      path: '/shortlists'
+      fullPath: '/shortlists'
+      preLoaderRoute: typeof ShortlistsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scenarios': {
+      id: '/scenarios'
+      path: '/scenarios'
+      fullPath: '/scenarios'
+      preLoaderRoute: typeof ScenariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scenario': {
+      id: '/scenario'
+      path: '/scenario'
+      fullPath: '/scenario'
+      preLoaderRoute: typeof ScenarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prospecting': {
+      id: '/prospecting'
+      path: '/prospecting'
+      fullPath: '/prospecting'
+      preLoaderRoute: typeof ProspectingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm': {
+      id: '/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof CrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crm/': {
+      id: '/crm/'
+      path: '/'
+      fullPath: '/crm/'
+      preLoaderRoute: typeof CrmIndexRouteImport
       parentRoute: typeof CrmRoute
     }
     '/qualification/$id': {
@@ -191,15 +301,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QualificationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/crm/$accountId': {
+      id: '/crm/$accountId'
+      path: '/$accountId'
+      fullPath: '/crm/$accountId'
+      preLoaderRoute: typeof CrmAccountIdRouteImport
+      parentRoute: typeof CrmRoute
+    }
   }
 }
 
 interface CrmRouteChildren {
   CrmAccountIdRoute: typeof CrmAccountIdRoute
+  CrmIndexRoute: typeof CrmIndexRoute
 }
 
 const CrmRouteChildren: CrmRouteChildren = {
   CrmAccountIdRoute: CrmAccountIdRoute,
+  CrmIndexRoute: CrmIndexRoute,
 }
 
 const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
@@ -207,22 +326,17 @@ const CrmRouteWithChildren = CrmRoute._addFileChildren(CrmRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CrmRoute: CrmRouteWithChildren,
+  FaqRoute: FaqRoute,
+  LibraryRoute: LibraryRoute,
   ProspectingRoute: ProspectingRoute,
   ScenarioRoute: ScenarioRoute,
+  ScenariosRoute: ScenariosRoute,
   ShortlistsRoute: ShortlistsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SourcesRoute: SourcesRoute,
+  TemplatesRoute: TemplatesRoute,
   QualificationIdRoute: QualificationIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -244,4 +244,3 @@ function Sources() {
   );
 }
 
-export { Sources };
