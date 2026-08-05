@@ -44,6 +44,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  dataQuality,
+  dqTone,
   fitBarClass,
   fitColorClass,
   type BusinessLineType,
@@ -115,7 +117,8 @@ function UniverseScreen() {
     const belowVolume = cp.annualVolume < config.rules.targetVolume;
     const belowMargin = cp.margin < config.rules.returnGate;
     const belowHurdle = applied && !blocked && fit < config.rules.fitMid;
-    return { ...cp, fit, blocked, belowVolume, belowMargin, belowHurdle };
+    const dq = dataQuality(cp).score;
+    return { ...cp, fit, blocked, dq, belowVolume, belowMargin, belowHurdle };
   });
 
   type Row = (typeof rows)[number];
@@ -153,6 +156,7 @@ function UniverseScreen() {
     { key: "portfolioSize", label: "Portfolio", get: (c) => c.portfolioSize },
     { key: "markets", label: "Gas & power markets", get: (c) => c.markets },
     { key: "annualVolume", label: "Volume", get: (c) => c.annualVolume, align: "right" },
+    { key: "dq", label: "Data quality", get: (c) => c.dq, align: "right" },
   ];
   // Company is column 1, Fit is column 2 (rendered explicitly); the rest follow.
   const restCols = columns.filter((c) => c.key !== "company");
@@ -317,6 +321,16 @@ function UniverseScreen() {
             {cp.annualVolume.toLocaleString()} GWh
           </span>
         );
+      case "dq": {
+        const tone = dqTone(cp.dq);
+        const cls =
+          tone === "success"
+            ? "text-success"
+            : tone === "warning"
+              ? "text-warning"
+              : "text-muted-foreground";
+        return <span className={`font-medium ${cls}`}>{cp.dq}</span>;
+      }
       case "fit":
         if (!applied)
           return (

@@ -110,6 +110,12 @@ Contact { id, accountId, name, role, email?, phone?, linkedin?, source: "auto"|"
 CommLog { id, accountId, channel: "email"|"linkedin"|"note", subject?, body, timestamp }
 Note    { id, accountId, body, author, createdAt, updatedAt }   // ops blob; account notes, independent of the comms log
 
+// Data sources / provenance (constants in data.ts; see DATA_SOURCES.md)
+Source  { key, name, tier: 1|2|3|4, retrieved }                 // SOURCES catalogue
+FIELD_SOURCE: Record<fieldKey, sourceKey>                        // which source backs each data field
+dataQuality(cp) -> { score, hasLei }                            // 0-100 evidence/confidence, separate from fit
+// scoreBreakdown sub items now also carry sourceTier + retrieved for the deep-dive provenance
+
 CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob; scenarioId undefined = universal
 
 // Rules engine (config blob). See REQUIREMENTS_rules-engine.md.

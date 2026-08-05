@@ -60,3 +60,33 @@ Alongside the origination fit score, compute a 0-100 data-quality score per enti
 6. **Prompt discipline.** Instruct the model to answer only from provided sources, cite them, and say "unknown" rather than guess.
 
 Net effect: the LLM accelerates discovery and drafting, but the universe is anchored on statutory registers (CEREMP + national regulators), keyed on LEI/registry IDs, corroborated by market-infrastructure data, enriched by commercial data, and gated by provenance, confidence and human review.
+
+## Feature backlog (this epic)
+
+Prototype = mockable now; Production = real integration later.
+
+**Foundation**
+1. Per-field provenance: value + source + tier + URL + retrieved date. (Prototype: **built** as a source registry + FIELD_SOURCE.)
+2. Source registry with tier and weight, admin-managed. (Prototype: **built** as `SOURCES`; admin editing pending.)
+3. Data-quality (confidence) score per field and per counterparty. (Prototype: **built** as `dataQuality`.)
+
+**Surfacing**
+4. Provenance on the deep dive: source chip + tier + retrieved per sub-score. (**Built**.)
+5. Data-quality score next to fit, on table and deep dive. (**Built**: DQ column + chip.)
+6. Evidence filter/flag: filter or badge by evidence quality; "unverified / LLM-only" badge. (Pending.)
+7. Conflict indicator: competing source values + which won. (Pending.)
+
+**Guardrails / workflow**
+8. Source allow-list, admin-editable. (Prototype config; production-enforced.)
+9. Source-quality weighting in entity resolution + scoring (Tier 1 dominates; Tier 4 cannot override Tier 1). (Pending.)
+10. Human-in-the-loop review gate: needs-review flag when DQ low / no LEI / Tier-1 conflict / Tier 3-4 only, with logged sign-off. (Pending.)
+11. Freshness and re-verify: stale-field flags vs source cadence, last-refreshed, re-verify action. (Pending.)
+
+**Production integrations (Later)**
+12. Tier-1 register connectors (ACER CEREMP, Ofgem, GLEIF, Companies House), keyed on LEI.
+13. Tier-2 corroboration feeds (EEX/ICE, ENTSOG/ENTSO-E, GIE, Elexon).
+14. Tier-3 enrichment (D&B, ZoomInfo, Orbis/Creditsafe).
+15. Allow-listed RAG pipeline with prompt discipline and provenance capture at gather time.
+16. Scheduled refresh per source cadence.
+
+Recommended order: slice 1 (1, 3, 4, 5) done; next slice 8, 9, 10; then 6, 7, 11; then production feeds.

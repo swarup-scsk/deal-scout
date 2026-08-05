@@ -5,7 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight } from "lucide-react";
-import { fitBarClass, fitColorClass, type ScoreBreakdown } from "@/lib/data";
+import {
+  dataQuality,
+  dqTone,
+  fitBarClass,
+  fitColorClass,
+  type Counterparty,
+  type ScoreBreakdown,
+} from "@/lib/data";
 import { useStore, type Decision } from "@/lib/store";
 import { AddToShortlist } from "@/components/AddToShortlist";
 
@@ -112,7 +119,10 @@ function QualificationScreen() {
             Review the evidence and record your origination decision.
           </p>
         </div>
-        <AddToShortlist counterpartyId={cp.id} label="Add to shortlist" />
+        <div className="flex items-center gap-2">
+          <DataQualityChip cp={cp} />
+          <AddToShortlist counterpartyId={cp.id} label="Add to shortlist" />
+        </div>
       </div>
 
       {(account || memberOfLists.length > 0 || existing) && (
@@ -414,6 +424,25 @@ function Note({ label, value }: { label: string; value: string }) {
   );
 }
 
+function DataQualityChip({ cp }: { cp: Counterparty }) {
+  const dq = dataQuality(cp);
+  const tone = dqTone(dq.score);
+  const cls =
+    tone === "success"
+      ? "bg-success/10 text-success"
+      : tone === "warning"
+        ? "bg-warning/15 text-warning"
+        : "bg-muted text-muted-foreground";
+  return (
+    <span
+      className={`rounded-full px-2.5 py-1 text-xs font-medium ${cls}`}
+      title="How well-evidenced this counterparty is (source quality, freshness, identity match)"
+    >
+      Data quality {dq.score}
+    </span>
+  );
+}
+
 function ScoreBreakdownCard({
   breakdown,
   scenarioTitle,
@@ -476,8 +505,14 @@ function ScoreBreakdownCard({
                     )}
                   </div>
                   {s.source && (
-                    <div className="text-[11px] text-muted-foreground/70">
-                      source: {s.source}
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/70">
+                      <span>source: {s.source}</span>
+                      {s.sourceTier && (
+                        <span className="rounded bg-muted px-1 font-medium text-muted-foreground">
+                          T{s.sourceTier}
+                        </span>
+                      )}
+                      {s.retrieved && <span>· {s.retrieved}</span>}
                     </div>
                   )}
                 </li>

@@ -741,6 +741,66 @@ export function counterpartyFieldValue(cpId: string, key: string): number | unde
   return undefined;
 }
 
+// ---------------------------------------------------------------------------
+// Data sources, provenance and data-quality (mocked). See DATA_SOURCES.md.
+// Tier 1 = official registers, 2 = market infrastructure, 3 = commercial, 4 = web/LLM.
+// ---------------------------------------------------------------------------
+
+export interface Source {
+  key: string;
+  name: string;
+  tier: 1 | 2 | 3 | 4;
+  retrieved: string; // mock freshness label
+}
+
+export const SOURCES: Source[] = [
+  { key: "acer-ceremp", name: "ACER CEREMP register", tier: 1, retrieved: "today" },
+  { key: "ofgem", name: "Ofgem licensee list", tier: 1, retrieved: "this month" },
+  { key: "gleif", name: "GLEIF (LEI)", tier: 1, retrieved: "today" },
+  { key: "companies-house", name: "Companies House", tier: 1, retrieved: "2 days ago" },
+  { key: "eex", name: "EEX participants", tier: 2, retrieved: "this week" },
+  { key: "entsog", name: "ENTSOG / GIE", tier: 2, retrieved: "today" },
+  { key: "dnb", name: "Dun & Bradstreet", tier: 3, retrieved: "2 weeks ago" },
+  { key: "web", name: "Company website (LLM)", tier: 4, retrieved: "unverified" },
+];
+
+// Which source backs each data field (prototype mapping).
+export const FIELD_SOURCE: Record<string, string> = {
+  netDebt: "companies-house",
+  netAssets: "companies-house",
+  revenue: "dnb",
+  creditRating: "dnb",
+  headcount: "web",
+  memberships: "eex",
+  annualVolume: "entsog",
+};
+
+export function sourceForField(fieldKey: string): Source | undefined {
+  return SOURCES.find((s) => s.key === FIELD_SOURCE[fieldKey]);
+}
+
+export function tierWeight(tier: number): number {
+  return tier === 1 ? 1 : tier === 2 ? 0.82 : tier === 3 ? 0.58 : 0.32;
+}
+
+// Data-quality (confidence) score 0-100: how well-evidenced a counterparty is.
+// Separate from fit (how attractive). Driven by source tier of its fields + LEI match.
+export function dataQuality(cp: Counterparty): { score: number; hasLei: boolean } {
+  const hasLei = !!cp.lei && cp.lei !== "n/a";
+  const fields = COUNTERPARTY_FIELDS[cp.id];
+  const present = fields ? Object.keys(fields) : [];
+  if (present.length === 0) return { score: hasLei ? 40 : 20, hasLei };
+  const tw =
+    present.reduce((s, f) => s + tierWeight(sourceForField(f)?.tier ?? 4), 0) /
+    present.length;
+  const idBonus = hasLei ? 1 : 0.7;
+  return { score: Math.min(100, Math.round(tw * 100 * idBonus)), hasLei };
+}
+
+export function dqTone(score: number): "success" | "warning" | "muted" {
+  return score >= 75 ? "success" : score >= 50 ? "warning" : "muted";
+}
+
 // Deterministic sub-score: maps a raw value to 0-100 per the rule type + thresholds.
 export function subScore(rule: RuleType, value: number, th: RuleThresholds): number {
   const n = value;
@@ -839,6 +899,8 @@ export interface SubBreakdown {
   blocking: boolean;
   blocked: boolean;
   skipped: boolean;
+  sourceTier?: number;
+  retrieved?: string;
 }
 export interface CritBreakdown {
   id: string;
@@ -874,6 +936,7 @@ export function scoreBreakdown(
       if (!s.enabled) continue;
       const raw = getValue(s.dataField);
       const fld = dataField(s.dataField);
+      const src = sourceForField(s.dataField);
       let skipped = false;
       let ss = 0;
       let subBlocked = false;
@@ -899,6 +962,9 @@ export function scoreBreakdown(
         blocking: s.blocking,
         blocked: subBlocked,
         skipped,
+        source: src?.name ?? fld?.source,
+        sourceTier: src?.tier,
+        retrieved: src?.retrieved,
       });
       if (!skipped) {
         cNum += ss * s.weight;

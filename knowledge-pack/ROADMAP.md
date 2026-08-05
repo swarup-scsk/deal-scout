@@ -29,6 +29,7 @@
 
 - CRM notes (D19) built: a separate Notes card on the account (`/crm/:accountId`), timestamped and attributed, editable and deletable, independent of the comms log. Persists under the ops blob (`notes`).
 - Data sources, traceability and guardrails documented in `DATA_SOURCES.md` (authoritative registers by quality tier, provenance model, LLM augmentation guardrails). Informs production data wiring.
+- Data-sources epic, slice 1 built (mocked): a **source registry** with quality tiers (T1-T4) in `data.ts`, **per-field provenance** (source name + tier + retrieved) shown in the deep-dive breakdown, and a per-counterparty **data-quality score** (`dataQuality`) surfaced as a chip on the deep dive and a "Data quality" column on the Counterparties table. Separate from fit.
 
 ## Now (current prototype hardening)
 
@@ -38,6 +39,7 @@
 
 - Design re-skin polish (optional): true 0.5px hairlines, soft two-layer card shadows, and flip segmented-control active state to white-pill + accent-text per the spec. Token re-skin is done; these are finishing touches.
 - Rules engine polish: scenario-level impact preview panel (Strong/Borderline/Blocked, movers vs saved); apply multiple scenarios; per-scenario fit-band thresholds.
+- **Data-sources epic, remaining slices** (feature list in `DATA_SOURCES.md`): slice 1 (provenance + data-quality) done; next are the source allow-list + tier weighting applied in scoring/merge, a conflict indicator, a human-in-the-loop review gate, and freshness/re-verify. Production integrations (Tier-1 register connectors keyed on LEI, Tier-2 corroboration, Tier-3 enrichment, allow-listed RAG, scheduled refresh) are Later.
 - **CRM notes**: separate, timestamped, attributed, editable/deletable notes on the account, independent of the comms log (no funnel).
 - **Value model as ranges** (conversion 8-12%, deal ~500K, 4 users) for the exec business-case slide.
 - **Deterministic scoring engine**: superseded by the rules engine above; keep the "why this score" breakdown panel requirement.
