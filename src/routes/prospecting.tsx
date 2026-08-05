@@ -53,9 +53,9 @@ import { useStore } from "@/lib/store";
 import { AddToShortlist } from "@/components/AddToShortlist";
 
 export const Route = createFileRoute("/prospecting")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    scenario: typeof search.scenario === "string" ? search.scenario : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { scenario?: string } =>
+    typeof search.scenario === "string" ? { scenario: search.scenario } : {},
+
   head: () => ({
     meta: [
       { title: "Universe - SEE Origination Scout" },
