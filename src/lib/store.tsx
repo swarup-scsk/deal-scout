@@ -417,6 +417,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         [id]: {
           thresholds: { ...prev.thresholds, ...partial.thresholds },
           rules: { ...prev.rules, ...partial.rules },
+        } as Partial<ScenarioConfig>,
         },
       };
     });

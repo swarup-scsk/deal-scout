@@ -1119,7 +1119,6 @@ export function scoreBreakdown(
         label: s.label,
         field: s.dataField,
         unit: fld?.unit,
-        source: fld?.source,
         rawValue: raw,
         ruleType: s.ruleType,
         thresholds: s.thresholds,
