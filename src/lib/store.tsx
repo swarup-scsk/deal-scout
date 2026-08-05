@@ -23,6 +23,7 @@ import {
   type CommLog,
   type CommTemplate,
   type Config,
+  type Note,
   type Contact,
   type ContactSource,
   type Counterparty,
@@ -190,6 +191,11 @@ interface StoreValue {
     accountId: string,
     entry: { channel: CommChannel; subject?: string; body: string },
   ) => void;
+  notes: Note[];
+  notesFor: (accountId: string) => Note[];
+  addNote: (accountId: string, body: string) => void;
+  updateNote: (id: string, body: string) => void;
+  deleteNote: (id: string) => void;
   setAccountStatus: (
     accountId: string,
     status: AccountStatus,
@@ -232,6 +238,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [commLogs, setCommLogs] = useState<CommLog[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [savedSnap, setSavedSnap] = useState("");
 
@@ -280,6 +287,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(o.accounts)) setAccounts(o.accounts);
         if (Array.isArray(o.contacts)) setContacts(o.contacts);
         if (Array.isArray(o.commLogs)) setCommLogs(o.commLogs);
+        if (Array.isArray(o.notes)) setNotes(o.notes);
       }
     } catch {
       // ignore malformed storage
@@ -299,12 +307,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           accounts,
           contacts,
           commLogs,
+          notes,
         }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [hydrated, counterpartyList, shortlists, accounts, contacts, commLogs]);
+  }, [hydrated, counterpartyList, shortlists, accounts, contacts, commLogs, notes]);
 
   const rankedCounterparties = useMemo(() => {
     return counterpartyList
@@ -778,6 +787,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...l,
     ]);
 
+  const notesFor = (accountId: string) =>
+    notes
+      .filter((n) => n.accountId === accountId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const addNote = (accountId: string, body: string) => {
+    const now = new Date().toISOString();
+    setNotes((l) => [
+      { id: uid("note"), accountId, body: body.trim(), author: "You", createdAt: now, updatedAt: now },
+      ...l,
+    ]);
+  };
+  const updateNote = (id: string, body: string) =>
+    setNotes((l) =>
+      l.map((n) =>
+        n.id === id
+          ? { ...n, body: body.trim(), updatedAt: new Date().toISOString() }
+          : n,
+      ),
+    );
+  const deleteNote = (id: string) =>
+    setNotes((l) => l.filter((n) => n.id !== id));
+
   const setAccountStatus = (
     accountId: string,
     status: AccountStatus,
@@ -882,6 +913,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     enrichAccount,
     logComm,
     setAccountStatus,
+    notes,
+    notesFor,
+    addNote,
+    updateNote,
+    deleteNote,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

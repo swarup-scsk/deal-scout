@@ -87,7 +87,8 @@ When adding a field here, add it in four places together - the `useState`, the h
   "shortlists":     [ …Shortlist ],
   "accounts":       [ …Account ],
   "contacts":       [ …Contact ],
-  "commLogs":       [ …CommLog ]
+  "commLogs":       [ …CommLog ],
+  "notes":          [ …Note ]
 }
 ```
 
@@ -107,6 +108,7 @@ Account {
 }
 Contact { id, accountId, name, role, email?, phone?, linkedin?, source: "auto"|"manual"|"enriched" }
 CommLog { id, accountId, channel: "email"|"linkedin"|"note", subject?, body, timestamp }
+Note    { id, accountId, body, author, createdAt, updatedAt }   // ops blob; account notes, independent of the comms log
 
 CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob; scenarioId undefined = universal
 

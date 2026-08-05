@@ -563,6 +563,16 @@ export interface CommLog {
   timestamp: string;
 }
 
+// Free-text account notes, independent of the communication log.
+export interface Note {
+  id: string;
+  accountId: string;
+  body: string;
+  author: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ---------------------------------------------------------------------------
 // Communication templates (content-admin authored; config data).
 // A template with no scenarioId is universal; one with a scenarioId overrides

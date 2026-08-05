@@ -27,6 +27,9 @@
 - Library screen polish: constrained field widths (data field + rule side by side, safeguards in a compact row), inline low-chrome titles instead of full-width boxed inputs, tidier band block. Removed the Admin/User "Viewing as" toggle from Library and Templates; both are now always editable (role concept retired from those screens).
 - SEE design re-skin applied at the token layer: `src/styles.css` tokens remapped to the SEEL spectrum (Apple-neutral surfaces, blue #0091d4 primary + accent, green #00c29d success), system font stack on body, sentence case enforced globally (the `uppercase` utility is neutralised), and a signature gradient strip in the app shell (one per screen). Every screen re-skins at once because they use semantic token classes.
 
+- CRM notes (D19) built: a separate Notes card on the account (`/crm/:accountId`), timestamped and attributed, editable and deletable, independent of the comms log. Persists under the ops blob (`notes`).
+- Data sources, traceability and guardrails documented in `DATA_SOURCES.md` (authoritative registers by quality tier, provenance model, LLM augmentation guardrails). Informs production data wiring.
+
 ## Now (current prototype hardening)
 
 - **Prospecting Priority-1 backlog** (from the value-discussion transcript): multi-select market scope + sub-region; volume ranges (0-500 GWh, 500 GWh-1 TWh, 1-5 TWh, 5 TWh+); licence-status filter (supplier / end-user / shipper); participant-role / business-line multi-select; restore info tooltips.
@@ -44,7 +47,7 @@
 
 ## Later (MVP)
 
-- **Real data feeds**: ZoomInfo, OFGEM, LEI / GLEIF, RSS triggers - wired via the n8n `prospect-scan` / `qualify` / Auto Search workflows (see DATA_CONTRACT.md).
+- **Real data feeds** (see `DATA_SOURCES.md` for the tiered source list): anchor the universe on ACER CEREMP + national regulator registers (Ofgem, ACM, BNetzA, CRE, CREG), key on GLEIF LEI, corroborate with EEX/ICE membership and ENTSOG/ENTSO-E/GIE/Elexon, enrich with commercial data; per-field provenance, a data-quality score, and human-in-the-loop review. Wired via the n8n `prospect-scan` / `qualify` / Auto Search workflows.
 - Market / regulatory intelligence view.
 - Multi-user **backend** (replaces localStorage) + auth.
 - Production destination decision: Salesforce / Agentforce for the Population → Ranking → Pitch → CRM spine.

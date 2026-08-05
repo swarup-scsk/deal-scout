@@ -42,7 +42,7 @@ import {
 export const Route = createFileRoute("/crm/$accountId")({
   head: () => ({
     meta: [
-      { title: "Account — SEE Origination Scout" },
+      { title: "Account - SEE Origination Scout" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -399,6 +399,8 @@ function CrmDetail() {
         )}
       </Card>
 
+      <NotesCard accountId={account.id} />
+
       {/* Add contact dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent>
@@ -495,5 +497,108 @@ function CrmDetail() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function NotesCard({ accountId }: { accountId: string }) {
+  const { notesFor, addNote, updateNote, deleteNote } = useStore();
+  const notes = notesFor(accountId);
+  const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  const add = () => {
+    if (!draft.trim()) return;
+    addNote(accountId, draft);
+    setDraft("");
+  };
+
+  return (
+    <Card className="p-0">
+      <div className="border-b border-border px-4 py-3 font-semibold text-foreground">
+        Notes
+      </div>
+      <div className="space-y-2 border-b border-border px-4 py-3">
+        <Textarea
+          rows={2}
+          value={draft}
+          placeholder="Add a note about this account…"
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <div className="flex justify-end">
+          <Button size="sm" onClick={add} disabled={!draft.trim()}>
+            Add note
+          </Button>
+        </div>
+      </div>
+      {notes.length === 0 ? (
+        <p className="px-4 py-4 text-sm text-muted-foreground">No notes yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {notes.map((n) => (
+            <li key={n.id} className="px-4 py-3">
+              {editingId === n.id ? (
+                <div className="space-y-2">
+                  <Textarea
+                    rows={2}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingId(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        updateNote(n.id, editText);
+                        setEditingId(null);
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="whitespace-pre-line text-sm text-foreground">
+                    {n.body}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">
+                      {n.author} · {new Date(n.createdAt).toLocaleString()}
+                      {n.updatedAt !== n.createdAt ? " · edited" : ""}
+                    </span>
+                    <span className="flex gap-1">
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-foreground"
+                        onClick={() => {
+                          setEditingId(n.id);
+                          setEditText(n.body);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteNote(n.id)}
+                      >
+                        Delete
+                      </button>
+                    </span>
+                  </div>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
