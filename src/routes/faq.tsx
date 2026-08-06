@@ -67,6 +67,14 @@ const WORKFLOW = [
   { t: "CRM", s: "outreach and record the deal" },
 ];
 
+// High-level configuration workflow (how the scoring and sources are set up).
+const CONFIG = [
+  { t: "Library", s: "define criteria + logic (admin)" },
+  { t: "Sources", s: "trusted sources + weights (admin)" },
+  { t: "Templates", s: "author outreach (admin)" },
+  { t: "Scenarios", s: "compose + tune per deal" },
+];
+
 const TIERS = [
   {
     tier: "Tier 1",
@@ -183,6 +191,17 @@ function Faq() {
           The path from the counterparty universe to a recorded decision.
         </p>
         <StepStrip steps={WORKFLOW} />
+      </Card>
+
+      <Card className="p-4">
+        <div className="mb-1 text-sm font-medium text-foreground">
+          Configuration workflow
+        </div>
+        <p className="mb-3 text-[11px] text-muted-foreground">
+          How the scoring criteria, trusted sources and outreach are set up
+          behind the scenes.
+        </p>
+        <StepStrip steps={CONFIG} />
       </Card>
 
       <Card className="p-4">
