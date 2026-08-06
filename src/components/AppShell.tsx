@@ -36,8 +36,8 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
   {
     label: "Configuration",
     items: [
-      { to: "/scenarios", label: "Scenarios", icon: SlidersHorizontal },
       { to: "/library", label: "Library", icon: Layers },
+      { to: "/scenarios", label: "Scenarios", icon: SlidersHorizontal },
       { to: "/sources", label: "Sources", icon: Database },
       { to: "/templates", label: "Templates", icon: Mail },
     ],

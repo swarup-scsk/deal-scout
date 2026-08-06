@@ -61,7 +61,7 @@ function Landing() {
         />
         <Feature
           icon={<Target className="h-5 w-5" />}
-          title="Micro-CRM"
+          title="CRM"
           body="Once you decide to proceed, manage accounts, contacts and outreach."
           to="/crm"
           cta="Open CRM"
