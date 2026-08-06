@@ -211,11 +211,7 @@ function QualificationScreen() {
                 thresholds={config.thresholds}
               />
             </div>
-          </Card>
-
-          <Card className="space-y-3 p-5">
-            <h3 className="font-semibold text-foreground">Company profile</h3>
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
+            <div className="grid gap-x-6 gap-y-2 border-t border-border pt-4 text-sm sm:grid-cols-2">
               <Row label="Legal entity" value={cp.legalEntityName} />
               <Row label="LEI" value={cp.lei} />
               <Row label="Revenue / EBITDA" value={cp.revenueEbitda} />
@@ -272,33 +268,13 @@ function QualificationScreen() {
               {cp.suggestionBasis}
             </p>
 
-            <div className="grid grid-cols-2 gap-4 border-t border-border pt-4 text-sm">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Fit score
-                </div>
-                <div
-                  className={`font-semibold ${fitColorClass(cp.fit, config.thresholds)}`}
-                >
-                  {cp.fit}
-                </div>
+            <div className="border-t border-border pt-4 text-sm">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Volume vs target
               </div>
-              <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Volume vs target
-                </div>
-                <div className="font-medium text-foreground">
-                  {cp.annualVolume.toLocaleString()} /{" "}
-                  {config.rules.targetVolume} GWh
-                </div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Indicative swing / sizing
-                </div>
-                <div className="font-medium text-foreground">
-                  {cp.indicativeSizing}
-                </div>
+              <div className="font-medium text-foreground">
+                {cp.annualVolume.toLocaleString()} / {config.rules.targetVolume}{" "}
+                GWh
               </div>
             </div>
 
@@ -309,15 +285,14 @@ function QualificationScreen() {
             </div>
           </Card>
 
+          <ScoreBreakdownCard
+            breakdown={scoreFor(cp.id, selectedScenarioId)}
+            scenarioTitle={
+              scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario"
+            }
+          />
         </div>
       </div>
-
-      <ScoreBreakdownCard
-        breakdown={scoreFor(cp.id, selectedScenarioId)}
-        scenarioTitle={
-          scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario"
-        }
-      />
 
       <Card className="space-y-5 p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
