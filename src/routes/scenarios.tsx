@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, RotateCcw } from "lucide-react";
+import { Check, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -60,8 +60,12 @@ function ScenarioConfig() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Configuring
+          </span>
           <Select value={scenarioId} onValueChange={setSelectedScenarioId}>
-            <SelectTrigger className="w-64">
+            <SelectTrigger className="h-10 w-64 border-primary bg-primary/5 font-semibold text-foreground ring-1 ring-primary/20">
+              <SlidersHorizontal className="mr-2 h-4 w-4 text-primary" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

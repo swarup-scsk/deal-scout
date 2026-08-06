@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Database, Plus, Trash2 } from "lucide-react";
+import { Check, Database, Info, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { DATA_FIELDS, DEFAULT_TIER_WEIGHTS, type Source } from "@/lib/data";
 import { useStore } from "@/lib/store";
 
@@ -53,6 +55,7 @@ function Sources() {
     saveAll,
   } = useStore();
   const { sources, tierWeights, fieldSource } = sourceRegistry;
+  const [infoOpen, setInfoOpen] = useState<string | null>(null);
 
   return (
     <div className="space-y-5">
@@ -90,50 +93,80 @@ function Sources() {
         </div>
         <div className="divide-y divide-border">
           {sources.map((s) => (
-            <div
-              key={s.key}
-              className="flex flex-wrap items-center gap-3 px-4 py-2.5"
-            >
-              <Input
-                value={s.name}
-                className={`${inlineInput} min-w-0 flex-1 text-sm font-medium`}
-                onChange={(e) => updateSource(s.key, { name: e.target.value })}
-              />
-              <div className="w-64">
-                <Select
-                  value={String(s.tier)}
-                  onValueChange={(v) =>
-                    updateSource(s.key, { tier: Number(v) as Source["tier"] })
+            <div key={s.key}>
+              <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+                <Input
+                  value={s.name}
+                  className={`${inlineInput} min-w-0 flex-1 text-sm font-medium`}
+                  onChange={(e) => updateSource(s.key, { name: e.target.value })}
+                />
+                <div className="w-64">
+                  <Select
+                    value={String(s.tier)}
+                    onValueChange={(v) =>
+                      updateSource(s.key, { tier: Number(v) as Source["tier"] })
+                    }
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIERS.map((t) => (
+                        <SelectItem key={t.tier} value={String(t.tier)}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Input
+                  value={s.retrieved}
+                  placeholder="freshness"
+                  className={`${inlineInput} w-36 text-xs text-muted-foreground`}
+                  onChange={(e) =>
+                    updateSource(s.key, { retrieved: e.target.value })
                   }
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setInfoOpen((k) => (k === s.key ? null : s.key))
+                  }
+                  className={`transition-colors hover:text-primary ${
+                    infoOpen === s.key || s.info
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                  aria-label="Source information"
+                  title="About this source"
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIERS.map((t) => (
-                      <SelectItem key={t.tier} value={String(t.tier)}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Info className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteSource(s.key)}
+                  className="text-muted-foreground transition-colors hover:text-destructive"
+                  aria-label="Delete source"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
-              <Input
-                value={s.retrieved}
-                placeholder="freshness"
-                className={`${inlineInput} w-36 text-xs text-muted-foreground`}
-                onChange={(e) =>
-                  updateSource(s.key, { retrieved: e.target.value })
-                }
-              />
-              <button
-                type="button"
-                onClick={() => deleteSource(s.key)}
-                className="text-muted-foreground transition-colors hover:text-destructive"
-                aria-label="Delete source"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {infoOpen === s.key && (
+                <div className="border-t border-border bg-muted/20 px-4 py-3">
+                  <Label className="text-xs text-muted-foreground">
+                    About this source (what it is and how it is accessed)
+                  </Label>
+                  <Textarea
+                    className="mt-1.5 text-sm"
+                    rows={2}
+                    placeholder="What this source provides and how it is accessed…"
+                    value={s.info ?? ""}
+                    onChange={(e) =>
+                      updateSource(s.key, { info: e.target.value })
+                    }
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

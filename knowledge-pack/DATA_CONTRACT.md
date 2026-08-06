@@ -113,7 +113,7 @@ Note    { id, accountId, body, author, createdAt, updatedAt }   // ops blob; acc
 
 // Data sources / provenance (see DATA_SOURCES.md). SOURCES / FIELD_SOURCE / DEFAULT_TIER_WEIGHTS
 // are seed constants in data.ts; the live values are the configurable SourceRegistry (config blob).
-Source          { key, name, tier: 1|2|3|4, retrieved }
+Source          { key, name, tier: 1|2|3|4, retrieved, info? }   // info = editable guidance note, shown via the info icon on /sources
 SourceRegistry  { sources: Source[], tierWeights: Record<tier, number>, fieldSource: Record<fieldKey, sourceKey> }  // persisted as sourceRegistry
 sourceForField(fieldKey, reg?) -> Source | undefined            // reg defaults to defaultSourceRegistry
 tierWeight(tier, weights?) -> number                            // 0-1 trust weight per tier

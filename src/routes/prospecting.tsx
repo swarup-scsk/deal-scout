@@ -154,6 +154,7 @@ function UniverseScreen() {
     align?: "right";
   }[] = [
     { key: "company", label: "Company", get: (c) => c.company },
+    { key: "dq", label: "Data quality", get: (c) => c.dq, align: "right" },
     { key: "country", label: "Country", get: (c) => c.country },
     { key: "legalEntityName", label: "Legal entity", get: (c) => c.legalEntityName },
     { key: "revenueEbitda", label: "Revenue / EBITDA", get: (c) => c.revenueEbitda },
@@ -162,7 +163,6 @@ function UniverseScreen() {
     { key: "portfolioSize", label: "Portfolio", get: (c) => c.portfolioSize },
     { key: "markets", label: "Gas & power markets", get: (c) => c.markets },
     { key: "annualVolume", label: "Volume", get: (c) => c.annualVolume, align: "right" },
-    { key: "dq", label: "Data quality", get: (c) => c.dq, align: "right" },
   ];
   // Company is column 1, Fit is column 2 (rendered explicitly); the rest follow.
   const restCols = columns.filter((c) => c.key !== "company");
@@ -514,9 +514,12 @@ function UniverseScreen() {
       {/* Module 2: Results */}
       <Card className="p-0">
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Showing
+          </span>
           <Select value={scenarioId} onValueChange={chooseScenario}>
-            <SelectTrigger className="w-56">
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
+            <SelectTrigger className="h-10 w-60 border-primary bg-primary/5 font-semibold text-foreground ring-1 ring-primary/20">
+              <SlidersHorizontal className="mr-2 h-4 w-4 text-primary" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -529,6 +532,11 @@ function UniverseScreen() {
             </SelectContent>
           </Select>
           <Badge variant="secondary">{rows.length} counterparties</Badge>
+          <span className="text-xs text-muted-foreground">
+            {applied
+              ? "scored and ranked by this scenario"
+              : "full universe, no fit scores yet"}
+          </span>
           {dl && <span className="text-xs text-muted-foreground">{dl}</span>}
           <div className="ml-auto flex items-center gap-2">
             <Button size="sm" onClick={() => setAddOpen(true)}>

@@ -881,17 +881,18 @@ export interface Source {
   name: string;
   tier: 1 | 2 | 3 | 4;
   retrieved: string; // mock freshness label
+  info?: string; // what the source is and how it is accessed (guidance)
 }
 
 export const SOURCES: Source[] = [
-  { key: "acer-ceremp", name: "ACER CEREMP register", tier: 1, retrieved: "today" },
-  { key: "ofgem", name: "Ofgem licensee list", tier: 1, retrieved: "16 Jul 2026" },
-  { key: "gleif", name: "GLEIF (LEI)", tier: 1, retrieved: "live" },
-  { key: "companies-house", name: "Companies House", tier: 1, retrieved: "2 days ago" },
-  { key: "eex", name: "EEX participants", tier: 2, retrieved: "this week" },
-  { key: "entsog", name: "ENTSOG / GIE", tier: 2, retrieved: "today" },
-  { key: "dnb", name: "Dun & Bradstreet", tier: 3, retrieved: "2 weeks ago" },
-  { key: "web", name: "Company website (LLM)", tier: 4, retrieved: "unverified" },
+  { key: "acer-ceremp", name: "ACER CEREMP register", tier: 1, retrieved: "today", info: "EU-wide register of REMIT wholesale market participants, with ACER codes. Public web and bulk download." },
+  { key: "ofgem", name: "Ofgem licensee list", tier: 1, retrieved: "16 Jul 2026", info: "GB gas and electricity licensees (suppliers, shippers, generators). Published as PDF lists, refreshed roughly monthly." },
+  { key: "gleif", name: "GLEIF (LEI)", tier: 1, retrieved: "live", info: "Global legal-entity identifier register. Free JSON API plus bulk golden copy; used as the primary join key." },
+  { key: "companies-house", name: "Companies House", tier: 1, retrieved: "2 days ago", info: "UK company register and filed accounts. Free API plus filing documents (iXBRL) for financials." },
+  { key: "eex", name: "EEX participants", tier: 2, retrieved: "this week", info: "EEX exchange and ECC clearing membership lists. Confirms a firm actually trades. Public web." },
+  { key: "entsog", name: "ENTSOG / GIE", tier: 2, retrieved: "today", info: "Gas transparency (ENTSOG) and storage / LNG (GIE) flows and capacity. Free APIs." },
+  { key: "dnb", name: "Dun & Bradstreet", tier: 3, retrieved: "2 weeks ago", info: "Commercial firmographics and credit (size, hierarchy, contacts). Paid; used only after identity is resolved." },
+  { key: "web", name: "Company website (LLM)", tier: 4, retrieved: "unverified", info: "Open web and company sites via allow-listed retrieval. Augments only, never a decision-critical source on its own." },
 ];
 
 // Which source backs each data field (prototype mapping).
