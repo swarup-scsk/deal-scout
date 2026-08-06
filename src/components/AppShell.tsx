@@ -49,7 +49,7 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { config, shortlists, accounts } = useStore();
+  const { shortlists, accounts } = useStore();
   const counts = {
     shortlists: shortlists.length,
     crm: accounts.filter((a) => a.status !== "deal-closed").length,
@@ -69,13 +69,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             SEE
           </span>
-          <span>
-            <span className="block text-sm font-semibold leading-tight text-foreground">
-              Origination Scout
-            </span>
-            <span className="block text-[11px] text-muted-foreground">
-              {config.scope.commodity} · {config.scope.region} · {config.scope.hub}
-            </span>
+          <span className="block text-sm font-semibold leading-tight text-foreground">
+            Origination Scout
           </span>
         </Link>
 
