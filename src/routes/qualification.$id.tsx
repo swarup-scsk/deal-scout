@@ -14,8 +14,6 @@ import {
 } from "lucide-react";
 import {
   dqTone,
-  fitBarClass,
-  fitColorClass,
   type Counterparty,
   type ScoreBreakdown,
 } from "@/lib/data";
@@ -32,33 +30,6 @@ export const Route = createFileRoute("/qualification/$id")({
   }),
   component: QualificationScreen,
 });
-
-function ScoreBar({
-  label,
-  value,
-  thresholds,
-}: {
-  label: string;
-  value: number;
-  thresholds: { green: number; amber: number; reject: number };
-}) {
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="text-foreground">{label}</span>
-        <span className={`font-semibold ${fitColorClass(value, thresholds)}`}>
-          {value}
-        </span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className={`h-full ${fitBarClass(value, thresholds)}`}
-          style={{ width: `${value}%` }}
-        />
-      </div>
-    </div>
-  );
-}
 
 function QualificationScreen() {
   const { id } = useParams({ from: "/qualification/$id" });
@@ -113,6 +84,29 @@ function QualificationScreen() {
       : cp.suggestion === "Hold"
         ? "secondary"
         : "destructive";
+
+  // Real, sourced data lives in the verified card; avoid repeating it elsewhere.
+  const verified = !!(cp.regulatory && cp.gleif);
+  const breakdown = scoreFor(cp.id, selectedScenarioId);
+  const scenarioTitle =
+    scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario";
+  const shownEvidence = verified
+    ? cp.evidence.filter(
+        (e) => !/^(ofgem|gleif|companies house)\b/i.test(e.trim()),
+      )
+    : cp.evidence;
+  const profileRows = [
+    { label: "Legal entity", value: cp.legalEntityName, dup: true },
+    { label: "LEI", value: cp.lei, dup: true },
+    { label: "Revenue / EBITDA", value: cp.revenueEbitda, dup: true },
+    { label: "Headcount", value: cp.headcount, dup: false },
+    { label: "Business line", value: cp.businessLineType, dup: true },
+    { label: "Sector", value: cp.businessLine, dup: false },
+    { label: "Portfolio size", value: cp.portfolioSize, dup: true },
+    { label: "Gas & power markets", value: cp.markets, dup: true },
+    { label: "Gas market", value: cp.gasMarket, dup: false },
+    { label: "Power market", value: cp.powerMarket, dup: false },
+  ].filter((r) => !(verified && r.dup));
 
   return (
     <div className="space-y-6">
@@ -194,35 +188,13 @@ function QualificationScreen() {
                 <div className="font-medium text-foreground">{cp.priceHub}</div>
               </div>
             </div>
-            <div className="space-y-3 pt-2">
-              <ScoreBar
-                label="Seasonal swing need"
-                value={cp.seasonalSwing}
-                thresholds={config.thresholds}
-              />
-              <ScoreBar
-                label="Creditworthiness"
-                value={cp.creditworthiness}
-                thresholds={config.thresholds}
-              />
-              <ScoreBar
-                label="Strategic fit"
-                value={cp.fit}
-                thresholds={config.thresholds}
-              />
-            </div>
-            <div className="grid gap-x-6 gap-y-2 border-t border-border pt-4 text-sm sm:grid-cols-2">
-              <Row label="Legal entity" value={cp.legalEntityName} />
-              <Row label="LEI" value={cp.lei} />
-              <Row label="Revenue / EBITDA" value={cp.revenueEbitda} />
-              <Row label="Headcount" value={cp.headcount} />
-              <Row label="Business line" value={cp.businessLineType} />
-              <Row label="Sector" value={cp.businessLine} />
-              <Row label="Portfolio size" value={cp.portfolioSize} />
-              <Row label="Gas & power markets" value={cp.markets} />
-              <Row label="Gas market" value={cp.gasMarket} />
-              <Row label="Power market" value={cp.powerMarket} />
-            </div>
+            {profileRows.length > 0 && (
+              <div className="grid gap-x-6 gap-y-2 border-t border-border pt-4 text-sm sm:grid-cols-2">
+                {profileRows.map((r) => (
+                  <Row key={r.label} label={r.label} value={r.value} />
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card className="space-y-3 p-5">
@@ -234,31 +206,16 @@ function QualificationScreen() {
             </div>
           </Card>
 
-          <Card className="space-y-3 p-5">
-            <h3 className="font-semibold text-foreground">
-              Evidence behind the estimates
-            </h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              {cp.evidence.map((e, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
-                  {e}
-                </li>
-              ))}
-            </ul>
-          </Card>
         </div>
 
         {/* RIGHT */}
         <div className="space-y-6">
           <Card className="space-y-4 p-5">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-semibold text-foreground">
                 Qualification assessment
               </h3>
-              <Badge variant={suggestionTone as never}>
-                AI: {cp.suggestion}
-              </Badge>
+              <Badge variant={suggestionTone as never}>AI: {cp.suggestion}</Badge>
             </div>
             <p className="text-xs italic text-muted-foreground">
               decision-support only, yours to decide
@@ -283,14 +240,40 @@ function QualificationScreen() {
               <Note label="Indicative sizing" value={cp.indicativeSizing} />
               <Note label="Key risk" value={cp.keyRisk} />
             </div>
-          </Card>
 
-          <ScoreBreakdownCard
-            breakdown={scoreFor(cp.id, selectedScenarioId)}
-            scenarioTitle={
-              scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario"
-            }
-          />
+            {/* Score breakdown, folded in */}
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-foreground">Score breakdown</h4>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {scenarioTitle}
+                  </span>
+                  {breakdown.blocked ? (
+                    <Badge variant="destructive">Blocked</Badge>
+                  ) : (
+                    <Badge>Fit {breakdown.fit}</Badge>
+                  )}
+                </div>
+              </div>
+              <ScoreBreakdownBody breakdown={breakdown} />
+            </div>
+
+            {/* Evidence, only what is not already in the verified card */}
+            {shownEvidence.length > 0 && (
+              <div className="space-y-2 border-t border-border pt-4">
+                <h4 className="font-semibold text-foreground">Evidence</h4>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  {shownEvidence.map((e, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                      {e}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 
@@ -692,30 +675,12 @@ function VerifiedDataCard({ cp }: { cp: Counterparty }) {
   );
 }
 
-function ScoreBreakdownCard({
-  breakdown,
-  scenarioTitle,
-}: {
-  breakdown: ScoreBreakdown;
-  scenarioTitle: string;
-}) {
+function ScoreBreakdownBody({ breakdown }: { breakdown: ScoreBreakdown }) {
   return (
-    <Card className="space-y-3 p-5">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground">Score breakdown</h3>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">{scenarioTitle}</span>
-          {breakdown.blocked ? (
-            <Badge variant="destructive">Blocked</Badge>
-          ) : (
-            <Badge>Fit {breakdown.fit}</Badge>
-          )}
-        </div>
-      </div>
+    <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
         How the fit is built, down to the source value.
       </p>
-      <div className="space-y-3">
         {breakdown.criteria.length === 0 && (
           <p className="text-sm text-muted-foreground">
             No criteria configured for this scenario.
@@ -769,7 +734,6 @@ function ScoreBreakdownCard({
             </ul>
           </div>
         ))}
-      </div>
-    </Card>
+    </div>
   );
 }
