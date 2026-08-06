@@ -164,8 +164,7 @@ function QualificationScreen() {
         </div>
       )}
 
-      <RegulatoryCard cp={cp} />
-      <FinancialsCard cp={cp} />
+      <VerifiedDataCard cp={cp} />
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         {/* LEFT */}
@@ -252,13 +251,6 @@ function QualificationScreen() {
               ))}
             </ul>
           </Card>
-
-          <ScoreBreakdownCard
-            breakdown={scoreFor(cp.id, selectedScenarioId)}
-            scenarioTitle={
-              scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario"
-            }
-          />
         </div>
 
         {/* RIGHT */}
@@ -273,7 +265,7 @@ function QualificationScreen() {
               </Badge>
             </div>
             <p className="text-xs italic text-muted-foreground">
-              decision-support only — yours to decide
+              decision-support only, yours to decide
             </p>
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">Basis: </span>
@@ -317,68 +309,94 @@ function QualificationScreen() {
             </div>
           </Card>
 
-          <Card className="space-y-4 p-5">
-            <h3 className="font-semibold text-foreground">Your decision</h3>
-            <div className="flex gap-2">
-              {(["Proceed", "Hold", "Decline"] as const).map((c) => (
-                <Button
-                  key={c}
-                  variant={choice === c ? "default" : "outline"}
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => setChoice(c)}
-                >
-                  {c}
-                </Button>
-              ))}
-            </div>
-            <Textarea
-              placeholder="Rationale for your decision…"
-              value={rationale}
-              onChange={(e) => setRationale(e.target.value)}
-              rows={3}
-            />
-            <Button disabled={!choice} onClick={record}>
-              Record decision
-            </Button>
-
-            {existing && (
-              <div className="rounded-md border border-success/40 bg-success/10 p-3 text-sm">
-                <div className="font-medium text-foreground">
-                  Decision recorded: {existing.choice}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {existing.timestamp}
-                </div>
-                {existing.rationale && (
-                  <p className="mt-1 text-muted-foreground">
-                    {existing.rationale}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {existing?.choice === "Proceed" &&
-              (() => {
-                const acct = accountForCounterparty(cp.id);
-                return acct ? (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() =>
-                      navigate({
-                        to: "/crm/$accountId",
-                        params: { accountId: acct.id },
-                      })
-                    }
-                  >
-                    Open CRM record <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : null;
-              })()}
-          </Card>
         </div>
       </div>
+
+      <ScoreBreakdownCard
+        breakdown={scoreFor(cp.id, selectedScenarioId)}
+        scenarioTitle={
+          scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario"
+        }
+      />
+
+      <Card className="space-y-5 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-lg font-semibold text-foreground">
+            Origination decision
+          </h3>
+          <Badge variant={suggestionTone as never}>
+            AI suggests: {cp.suggestion}
+          </Badge>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {(["Proceed", "Hold", "Decline"] as const).map((c) => {
+            const active = choice === c;
+            const v = !active
+              ? "outline"
+              : c === "Decline"
+                ? "destructive"
+                : c === "Hold"
+                  ? "secondary"
+                  : "default";
+            return (
+              <Button
+                key={c}
+                variant={v as never}
+                className="h-12 text-base"
+                onClick={() => setChoice(c)}
+              >
+                {c}
+              </Button>
+            );
+          })}
+        </div>
+        <Textarea
+          placeholder="Rationale for your decision…"
+          value={rationale}
+          onChange={(e) => setRationale(e.target.value)}
+          rows={3}
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs text-muted-foreground">
+            Proceed promotes this counterparty into the CRM.
+          </span>
+          <Button disabled={!choice} onClick={record}>
+            Record decision
+          </Button>
+        </div>
+
+        {existing && (
+          <div className="rounded-md border border-success/40 bg-success/10 p-3 text-sm">
+            <div className="font-medium text-foreground">
+              Decision recorded: {existing.choice}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {existing.timestamp}
+            </div>
+            {existing.rationale && (
+              <p className="mt-1 text-muted-foreground">{existing.rationale}</p>
+            )}
+          </div>
+        )}
+
+        {existing?.choice === "Proceed" &&
+          (() => {
+            const acct = accountForCounterparty(cp.id);
+            return acct ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate({
+                    to: "/crm/$accountId",
+                    params: { accountId: acct.id },
+                  })
+                }
+              >
+                Open CRM record <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : null;
+          })()}
+      </Card>
 
       <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-4">
         <Button
@@ -463,9 +481,9 @@ type GleifLive = {
   lastUpdate: string;
 };
 
-// Real, sourced regulatory identity for the featured counterparty. Ofgem data is
-// a verified snapshot; GLEIF is fetched live from the global LEI register on click.
-function RegulatoryCard({ cp }: { cp: Counterparty }) {
+// Combined real, sourced data for the featured counterparty: identity + profile,
+// Ofgem licence (verified snapshot), live GLEIF LEI, and Companies House financials.
+function VerifiedDataCard({ cp }: { cp: Counterparty }) {
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
     "idle",
   );
@@ -473,6 +491,7 @@ function RegulatoryCard({ cp }: { cp: Counterparty }) {
   if (!cp.regulatory || !cp.gleif) return null;
   const reg = cp.regulatory;
   const snap = cp.gleif;
+  const fin = cp.financials;
 
   const verify = async () => {
     setState("loading");
@@ -511,16 +530,50 @@ function RegulatoryCard({ cp }: { cp: Counterparty }) {
     lastUpdate: snap.lastUpdate,
   };
 
+  const idRows = [
+    { label: "Legal entity", value: cp.legalEntityName },
+    { label: "Company number", value: reg.companyNumber },
+    { label: "LEI", value: cp.lei },
+    { label: "Jurisdiction", value: cp.country },
+    { label: "Business line", value: cp.businessLineType },
+    { label: "Markets", value: cp.markets },
+  ];
+
+  const finRows = fin
+    ? [
+        { label: "Revenue", value: fin.revenue, sub: fin.revenueGrowth },
+        { label: "Adjusted EBITDA", value: fin.adjEbitda },
+        { label: "Profit before tax", value: fin.profitBeforeTax },
+        { label: "Net cash", value: fin.netCash },
+        { label: "Delivered volume", value: fin.deliveredVolume },
+      ].filter((r) => r.value)
+    : [];
+
   return (
     <Card className="space-y-4 border-success/30 p-5">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <ShieldCheck className="h-5 w-5 text-success" />
-        <h3 className="font-semibold text-foreground">Regulatory identity</h3>
+        <h3 className="font-semibold text-foreground">
+          Verified identity, licence and financials
+        </h3>
         <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
           Real data, verified sources
         </span>
       </div>
 
+      {/* Identity and profile (real, sourced) */}
+      <div className="grid gap-x-6 gap-y-2.5 rounded-lg border border-border bg-muted/20 p-4 text-sm sm:grid-cols-3">
+        {idRows.map((r) => (
+          <div key={r.label}>
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              {r.label}
+            </div>
+            <div className="font-medium text-foreground">{r.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Ofgem + GLEIF */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-muted/20 p-4">
           <div className="mb-2 flex items-center gap-2">
@@ -532,12 +585,6 @@ function RegulatoryCard({ cp }: { cp: Counterparty }) {
             </span>
           </div>
           <div className="space-y-1.5 text-sm text-muted-foreground">
-            <div>
-              <span className="font-medium text-foreground">
-                Company number:
-              </span>{" "}
-              {reg.companyNumber}
-            </div>
             {reg.electricity && <div>{reg.electricity}</div>}
             {reg.gas && <div>{reg.gas}</div>}
             <div className="text-[11px]">Retrieved {reg.retrieved}</div>
@@ -618,59 +665,54 @@ function RegulatoryCard({ cp }: { cp: Counterparty }) {
           )}
         </div>
       </div>
+
+      {/* Companies House financials */}
+      {fin && (
+        <div className="rounded-lg border border-border bg-muted/20 p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <FileText className="h-4 w-4 text-success" />
+            <span className="text-sm font-semibold text-foreground">
+              Financials
+            </span>
+            <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+              Companies House · Tier 1
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {fin.fiscalYear}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            {finRows.map((r) => (
+              <div key={r.label}>
+                <div className="text-xs text-muted-foreground">{r.label}</div>
+                <div className="text-lg font-semibold text-foreground">
+                  {r.value}
+                </div>
+                {r.sub && (
+                  <div className="text-[11px] text-success">{r.sub}</div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
+            <span>
+              {fin.basis}. {fin.source}. Retrieved {fin.retrieved}.
+            </span>
+            <a
+              className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+              href={fin.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Annual report <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        </div>
+      )}
+
       {snap.note && (
         <p className="text-[11px] text-muted-foreground">{snap.note}</p>
       )}
-    </Card>
-  );
-}
-
-// Real filed financials (Companies House / audited accounts), verified snapshot.
-function FinancialsCard({ cp }: { cp: Counterparty }) {
-  const f = cp.financials;
-  if (!f) return null;
-  const rows = [
-    { label: "Revenue", value: f.revenue, sub: f.revenueGrowth },
-    { label: "Adjusted EBITDA", value: f.adjEbitda },
-    { label: "Profit before tax", value: f.profitBeforeTax },
-    { label: "Net cash", value: f.netCash },
-    { label: "Delivered volume", value: f.deliveredVolume },
-  ].filter((r) => r.value);
-
-  return (
-    <Card className="space-y-4 border-success/30 p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <FileText className="h-5 w-5 text-success" />
-        <h3 className="font-semibold text-foreground">Financials</h3>
-        <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">
-          Companies House · Tier 1 · verified snapshot
-        </span>
-        <span className="text-xs text-muted-foreground">{f.fiscalYear}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        {rows.map((r) => (
-          <div key={r.label}>
-            <div className="text-xs text-muted-foreground">{r.label}</div>
-            <div className="text-lg font-semibold text-foreground">
-              {r.value}
-            </div>
-            {r.sub && <div className="text-[11px] text-success">{r.sub}</div>}
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-[11px] text-muted-foreground">
-        <span>
-          {f.basis}. {f.source}. Retrieved {f.retrieved}.
-        </span>
-        <a
-          className="inline-flex items-center gap-1 text-brand-blue hover:underline"
-          href={f.url}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Annual report <ExternalLink className="h-3 w-3" />
-        </a>
-      </div>
     </Card>
   );
 }
