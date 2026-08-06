@@ -50,11 +50,13 @@ export function AddToShortlist({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant={variant} size={size}>
-          <ListPlus className="mr-1.5 h-4 w-4" />
+        <Button variant={variant} size={size} aria-label="Add to shortlist">
+          <ListPlus className={`h-4 w-4 ${label ? "mr-1.5" : ""}`} />
           {label}
           {count > 0 && (
-            <span className="ml-1.5 rounded-full bg-brand-blue/15 px-1.5 text-[10px] font-semibold text-brand-blue">
+            <span
+              className={`rounded-full bg-brand-blue/15 px-1.5 text-[10px] font-semibold text-brand-blue ${label ? "ml-1.5" : "ml-1"}`}
+            >
               {count}
             </span>
           )}

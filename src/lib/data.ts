@@ -312,7 +312,7 @@ export const counterparties: Counterparty[] = [
     country: "United Kingdom",
     legalEntityName: "Yu Energy Retail Ltd",
     lei: "213800ACO9GDDBM7DS35",
-    revenueEbitda: "£645.5m / £48.8m adj. EBITDA (Yü Group, FY2024)",
+    revenueEbitda: "£645.5m / £48.8m",
     headcount: "~800",
     businessLine: "Non-domestic gas & power supply",
     businessLineType: "Energy Supplier",

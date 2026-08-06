@@ -589,7 +589,7 @@ function UniverseScreen() {
                       >
                         Deep dive
                       </Button>
-                      <AddToShortlist counterpartyId={cp.id} />
+                      <AddToShortlist counterpartyId={cp.id} label="" />
                     </div>
                   </TableCell>
                   {restCols.map((col) => (
