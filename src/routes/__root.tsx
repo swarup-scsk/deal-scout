@@ -12,8 +12,10 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { StoreProvider } from "@/lib/store";
+import { AuthProvider, useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
 import { ConfigPanel } from "@/components/ConfigPanel";
+import { LoginScreen } from "@/components/LoginScreen";
 
 function NotFoundComponent() {
   return (
@@ -120,17 +122,33 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Gate the app behind a simple sign-in. Renders nothing until auth state has
+// hydrated from localStorage (avoids an SSR / hydration flash), then shows the
+// login screen or the app.
+function AuthGate() {
+  const { user, ready } = useAuth();
+  if (!ready) return null;
+  if (!user) return <LoginScreen />;
+  return (
+    <>
+      <AppShell>
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </AppShell>
+      <ConfigPanel />
+    </>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
       <StoreProvider>
-        <AppShell>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </AppShell>
-        <ConfigPanel />
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
       </StoreProvider>
     </QueryClientProvider>
   );

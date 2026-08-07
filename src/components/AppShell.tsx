@@ -6,11 +6,13 @@ import {
   Home,
   Layers,
   ListChecks,
+  LogOut,
   Mail,
   SlidersHorizontal,
   Users,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 
 type NavItem = {
   to: string;
@@ -50,6 +52,7 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { shortlists, accounts } = useStore();
+  const { user, signOut } = useAuth();
   const counts = {
     shortlists: shortlists.length,
     crm: accounts.filter((a) => a.status !== "deal-closed").length,
@@ -105,6 +108,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           ))}
         </nav>
+
+        {user && (
+          <div className="mt-auto border-t border-border px-3 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-xs text-muted-foreground">
+                {user.name}
+              </span>
+              <button
+                type="button"
+                onClick={signOut}
+                className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign out
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
 
       <main className="min-w-0 flex-1">
