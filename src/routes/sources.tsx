@@ -50,6 +50,15 @@ const tierMeta = (t: number) => TIERS.find((x) => x.tier === t) ?? TIERS[3];
 const inlineInput =
   "h-9 border-transparent bg-transparent px-2 shadow-none hover:bg-muted/50 focus-visible:bg-card";
 
+// Coverage is toggled via chips (GLOBAL / EU / each region), not free text.
+const COVERAGE_OPTS = ["GLOBAL", "EU", ...REGIONS.map((r) => r.code)];
+function toggleCoverage(cov: string[] | undefined, code: string): string[] {
+  const set = new Set(cov ?? []);
+  if (set.has(code)) set.delete(code);
+  else set.add(code);
+  return [...set];
+}
+
 function Sources() {
   const {
     sourceRegistry,
@@ -135,20 +144,6 @@ function Sources() {
                     updateSource(s.key, { retrieved: e.target.value })
                   }
                 />
-                <Input
-                  value={(s.coverage ?? ["GLOBAL"]).join(", ")}
-                  placeholder="regions"
-                  title="Regions this source covers, e.g. GB, DE, or GLOBAL"
-                  className={`${inlineInput} w-32 text-xs text-muted-foreground`}
-                  onChange={(e) =>
-                    updateSource(s.key, {
-                      coverage: e.target.value
-                        .split(",")
-                        .map((x) => x.trim().toUpperCase())
-                        .filter(Boolean),
-                    })
-                  }
-                />
                 <button
                   type="button"
                   onClick={() =>
@@ -172,6 +167,32 @@ function Sources() {
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1 px-4 pb-2.5">
+                <span className="mr-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Covers
+                </span>
+                {COVERAGE_OPTS.map((code) => {
+                  const on = (s.coverage ?? []).includes(code);
+                  return (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() =>
+                        updateSource(s.key, {
+                          coverage: toggleCoverage(s.coverage, code),
+                        })
+                      }
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                        on
+                          ? "bg-brand-blue/15 text-brand-blue"
+                          : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
+                    >
+                      {code}
+                    </button>
+                  );
+                })}
               </div>
               {infoOpen === s.key && (
                 <div className="border-t border-border bg-muted/20 px-4 py-3">

@@ -5,12 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowRight,
   BadgeCheck,
   ExternalLink,
   FileText,
   Loader2,
   ShieldCheck,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   dqTone,
@@ -54,6 +62,10 @@ function QualificationScreen() {
 
   const [choice, setChoice] = useState<Decision["choice"] | null>(null);
   const [rationale, setRationale] = useState("");
+  // Deep dive is scenario-switchable; defaults to the globally selected scenario.
+  const [scenarioId, setScenarioId] = useState(
+    selectedScenarioId !== "none" ? selectedScenarioId : scenarios[0]?.id ?? "none",
+  );
   const existing = cp ? decisions[cp.id] : undefined;
 
   if (!cp) {
@@ -87,9 +99,9 @@ function QualificationScreen() {
 
   // Real, sourced data lives in the verified card; avoid repeating it elsewhere.
   const verified = !!(cp.regulatory && cp.gleif);
-  const breakdown = scoreFor(cp.id, selectedScenarioId);
+  const breakdown = scoreFor(cp.id, scenarioId);
   const scenarioTitle =
-    scenarios.find((s) => s.id === selectedScenarioId)?.title ?? "Scenario";
+    scenarios.find((s) => s.id === scenarioId)?.title ?? "Scenario";
   const shownEvidence = verified
     ? cp.evidence.filter(
         (e) => !/^(ofgem|gleif|companies house)\b/i.test(e.trim()),
@@ -119,7 +131,23 @@ function QualificationScreen() {
             Review the evidence and record your origination decision.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Scenario
+          </span>
+          <Select value={scenarioId} onValueChange={setScenarioId}>
+            <SelectTrigger className="h-9 w-56 border-primary bg-primary/5 font-medium text-foreground ring-1 ring-primary/20">
+              <SlidersHorizontal className="mr-2 h-4 w-4 text-primary" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {scenarios.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <DataQualityChip cp={cp} />
           <AddToShortlist counterpartyId={cp.id} label="Add to shortlist" />
         </div>
