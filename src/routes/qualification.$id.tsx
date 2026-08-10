@@ -567,31 +567,47 @@ function VerifiedDataCard({ cp }: { cp: Counterparty }) {
               Tier 1
             </span>
             <span className="text-sm font-semibold text-foreground">
-              Ofgem licensee register
+              {reg.regulator ?? "Ofgem licensee register"}
             </span>
           </div>
           <div className="space-y-1.5 text-sm text-muted-foreground">
+            {reg.summary && <div>{reg.summary}</div>}
             {reg.electricity && <div>{reg.electricity}</div>}
             {reg.gas && <div>{reg.gas}</div>}
             <div className="text-[11px]">Retrieved {reg.retrieved}</div>
           </div>
           <div className="mt-2 flex flex-wrap gap-3 text-[11px]">
-            <a
-              className="inline-flex items-center gap-1 text-brand-blue hover:underline"
-              href={reg.electricityUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Electricity list <ExternalLink className="h-3 w-3" />
-            </a>
-            <a
-              className="inline-flex items-center gap-1 text-brand-blue hover:underline"
-              href={reg.gasUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Gas list <ExternalLink className="h-3 w-3" />
-            </a>
+            {reg.electricityUrl && (
+              <a
+                className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+                href={reg.electricityUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Electricity list <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {reg.gasUrl && (
+              <a
+                className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+                href={reg.gasUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Gas list <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {reg.links?.map((l) => (
+              <a
+                key={l.url}
+                className="inline-flex items-center gap-1 text-brand-blue hover:underline"
+                href={l.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {l.label} <ExternalLink className="h-3 w-3" />
+              </a>
+            ))}
           </div>
         </div>
 

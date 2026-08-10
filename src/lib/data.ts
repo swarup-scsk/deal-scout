@@ -47,14 +47,19 @@ export interface Scenario {
 }
 
 // Real, sourced regulatory identity for a featured counterparty (demo).
-// These carry genuine data retrieved from Ofgem + GLEIF, unlike the mocked fields.
+// Carries genuine data retrieved from the licence register + GLEIF. Generic across
+// jurisdictions: GB uses Ofgem (electricity/gas + list URLs); DE/AT/CH use the local
+// regulator via `regulator` + `summary` + `links`.
 export interface OfgemLicence {
   companyNumber: string;
+  regulator?: string; // e.g. "BNetzA / CEREMP (DE)"; defaults to Ofgem when absent
+  summary?: string; // one-line licence summary (used for non-GB regulators)
   electricity?: string;
   gas?: string;
   retrieved: string;
-  electricityUrl: string;
-  gasUrl: string;
+  electricityUrl?: string;
+  gasUrl?: string;
+  links?: { label: string; url: string }[];
 }
 
 export interface GleifSnapshot {
@@ -388,6 +393,212 @@ export const counterparties: Counterparty[] = [
       source: "Companies House filed accounts (audited annual report FY2024)",
       retrieved: "5 Aug 2026",
       url: "https://www.yugroupplc.com/wp-content/uploads/2025/03/Yu-Group-plc-Annual-report-and-accounts-2024.pdf",
+    },
+  },
+  {
+    id: "trianel-de",
+    company: "Trianel GmbH",
+    country: "Germany",
+    jurisdiction: "DE",
+    legalEntityName: "Trianel GmbH",
+    lei: "529900A42A65AFJG6O09",
+    revenueEbitda: "€8.5bn / €92.5m EBT (FY2024)",
+    headcount: "~500",
+    businessLine: "Municipal-utility trading house",
+    businessLineType: "Trader",
+    markets: "DE, NW Europe (EEX / EPEX, THE)",
+    portfolioSize: "~50 TWh traded",
+    gasMarket: "Active",
+    powerMarket: "Active",
+    annualVolume: 50000,
+    aiInsight:
+      "Trading house for around 58 municipal utilities; already an EEX/EPEX member, so a smaller market-access gap.",
+    margin: 1500000,
+    sub: { strategicFit: 78, profitability: 74, portfolioSynergy: 82, complexity: 62, dataAvailability: 86 },
+    sector: "Energy trading and services",
+    priceHub: "THE / EEX",
+    seasonalSwing: 60,
+    creditworthiness: 72,
+    contact: "No prior contact",
+    standing: "New prospect",
+    lastContact: "No prior contact",
+    evidence: [
+      "GLEIF: Trianel GmbH, LEI 529900A42A65AFJG6O09, Aachen HRB 7729, status active.",
+      "Bundesanzeiger (FY2024): revenue €8.5bn, profit before tax €92.5m.",
+      "EEX/EPEX participant via Trianel European Energy Trading GmbH: already has direct market access.",
+    ],
+    suggestion: "Hold",
+    suggestionBasis:
+      "Strong trading house, but it already holds direct exchange access, so the market-access opportunity is limited.",
+    indicativeSizing: "Structured flow / co-operation, not DMA",
+    demandProfileFit: "Aggregated municipal demand; flexible.",
+    keyRisk: "Cooperative ownership; existing in-house trading reduces the gap.",
+    realData: true,
+    regulatory: {
+      companyNumber: "HRB 7729 (Amtsgericht Aachen)",
+      regulator: "BNetzA / CEREMP (DE)",
+      summary: "Registered German wholesale market participant (REMIT via CEREMP); active power and gas trading.",
+      retrieved: "10 Aug 2026",
+      links: [{ label: "ACER CEREMP", url: "https://www.acer-remit.eu/" }],
+    },
+    gleif: {
+      lei: "529900A42A65AFJG6O09",
+      legalName: "Trianel GmbH",
+      companyNumber: "HRB 7729",
+      status: "ACTIVE",
+      registrationStatus: "ISSUED",
+      corroboration: "FULLY_CORROBORATED",
+      hq: "Aachen, DE",
+      lastUpdate: "2025-10-08",
+      note: "Trades on EEX/EPEX via subsidiary Trianel European Energy Trading GmbH.",
+    },
+    financials: {
+      fiscalYear: "FY2024",
+      revenue: "€8.5bn",
+      revenueGrowth: "-10% YoY",
+      profitBeforeTax: "€92.5m",
+      companyNumber: "HRB 7729",
+      basis: "Trianel GmbH, filed accounts",
+      source: "Bundesanzeiger (DE filings)",
+      retrieved: "10 Aug 2026",
+      url: "https://www.northdata.com/Trianel+GmbH,+Aachen/HRB+7729",
+    },
+  },
+  {
+    id: "verbund-e4b-at",
+    company: "VERBUND Energy4Business GmbH",
+    country: "Austria",
+    jurisdiction: "AT",
+    legalEntityName: "VERBUND Energy4Business GmbH",
+    lei: "529900RTYBY8TPW9U991",
+    revenueEbitda: "€8,224.6m / €1,875.3m group result (VERBUND, FY2024)",
+    headcount: "~4,100 (group)",
+    businessLine: "Energy trading and B2B supply",
+    businessLineType: "Trader",
+    markets: "AT, DE, Central Europe (EXAA, EEX / EPEX)",
+    portfolioSize: "~60 TWh",
+    gasMarket: "Active",
+    powerMarket: "Active",
+    annualVolume: 60000,
+    aiInsight:
+      "Central market-access and trading arm of VERBUND; strong balance sheet and existing exchange access.",
+    margin: 2000000,
+    sub: { strategicFit: 82, profitability: 84, portfolioSynergy: 80, complexity: 58, dataAvailability: 88 },
+    sector: "Energy trading and supply",
+    priceHub: "EXAA / EEX",
+    seasonalSwing: 55,
+    creditworthiness: 85,
+    contact: "No prior contact",
+    standing: "New prospect",
+    lastContact: "No prior contact",
+    evidence: [
+      "GLEIF: VERBUND Energy4Business GmbH, LEI 529900RTYBY8TPW9U991, Vienna FN 524455 h, status active.",
+      "Financials (VERBUND AG group, FY2024): revenue €8,224.6m, group result €1,875.3m.",
+      "EPEX SPOT / EEX participant: central market access for the VERBUND group.",
+    ],
+    suggestion: "Hold",
+    suggestionBasis:
+      "Large, well-capitalised group trading arm with its own market access; limited direct-market-access gap.",
+    indicativeSizing: "Structured products / cooperation",
+    demandProfileFit: "Hydro-heavy portfolio; strong optionality.",
+    keyRisk: "Group-level financials; the opco is a subsidiary of the listed parent.",
+    realData: true,
+    regulatory: {
+      companyNumber: "FN 524455 h (Handelsgericht Wien)",
+      regulator: "E-Control (AT)",
+      summary: "Austrian licensed energy trader; VERBUND group market-access arm.",
+      retrieved: "10 Aug 2026",
+      links: [{ label: "E-Control", url: "https://www.e-control.at/" }],
+    },
+    gleif: {
+      lei: "529900RTYBY8TPW9U991",
+      legalName: "VERBUND Energy4Business GmbH",
+      companyNumber: "FN 524455 h",
+      status: "ACTIVE",
+      registrationStatus: "ISSUED",
+      corroboration: "FULLY_CORROBORATED",
+      hq: "Vienna, AT",
+      lastUpdate: "2026",
+      note: "Trading and market-access arm of VERBUND AG (Vienna-listed).",
+    },
+    financials: {
+      fiscalYear: "FY2024 (VERBUND AG group)",
+      revenue: "€8,224.6m",
+      revenueGrowth: "-21% YoY",
+      profitBeforeTax: "€1,875.3m (group result)",
+      companyNumber: "FN 524455 h",
+      basis: "VERBUND AG, consolidated (parent group)",
+      source: "VERBUND annual report / Firmenbuch",
+      retrieved: "10 Aug 2026",
+      url: "https://www.verbund.com/media/qcwgsj5i/verbund-annual-financial-report-2024-englisch-final.pdf",
+    },
+  },
+  {
+    id: "bkw-ch",
+    company: "BKW Energie AG",
+    country: "Switzerland",
+    jurisdiction: "CH",
+    legalEntityName: "BKW Energie AG",
+    lei: "HP4455X23HMJWUDSIO96",
+    revenueEbitda: "CHF 4.8bn / CHF 0.8bn EBIT (FY2024)",
+    headcount: "~12,000 (group)",
+    businessLine: "Integrated utility (generation, grid, services)",
+    businessLineType: "Asset Owner",
+    markets: "CH, DE, IT (EEX, day-ahead)",
+    portfolioSize: "~40 TWh",
+    gasMarket: "Limited",
+    powerMarket: "Active",
+    annualVolume: 40000,
+    aiInsight:
+      "SIX-listed Swiss utility; generation plus trading, strong balance sheet, and outside the EU (no CEREMP).",
+    margin: 1800000,
+    sub: { strategicFit: 74, profitability: 78, portfolioSynergy: 70, complexity: 60, dataAvailability: 84 },
+    sector: "Integrated utility",
+    priceHub: "Swissix / EEX",
+    seasonalSwing: 65,
+    creditworthiness: 80,
+    contact: "No prior contact",
+    standing: "New prospect",
+    lastContact: "No prior contact",
+    evidence: [
+      "GLEIF: BKW Energie AG, LEI HP4455X23HMJWUDSIO96, Bern CHE-103.258.498, status active.",
+      "Financials (FY2024, SIX-listed): revenue CHF 4.8bn, EBIT CHF 0.8bn, equity ratio 51.5%.",
+      "EEX participant; Swiss (non-EU), so REMIT/CEREMP does not apply.",
+    ],
+    suggestion: "Hold",
+    suggestionBasis:
+      "Large listed utility with its own trading and generation; limited market-access gap and outside the EU register set.",
+    indicativeSizing: "Asset-backed / structured",
+    demandProfileFit: "Hydro and flexible generation; good optionality.",
+    keyRisk: "Swiss jurisdiction (no CEREMP); already trades directly.",
+    realData: true,
+    regulatory: {
+      companyNumber: "CHE-103.258.498",
+      regulator: "ElCom (CH)",
+      summary: "Swiss electricity supply and grid participant; SIX-listed group.",
+      retrieved: "10 Aug 2026",
+      links: [{ label: "ElCom", url: "https://www.elcom.admin.ch/" }],
+    },
+    gleif: {
+      lei: "HP4455X23HMJWUDSIO96",
+      legalName: "BKW Energie AG",
+      companyNumber: "CHE-103.258.498",
+      status: "ACTIVE",
+      registrationStatus: "ISSUED",
+      corroboration: "FULLY_CORROBORATED",
+      hq: "Bern, CH",
+      lastUpdate: "2026-03-26",
+      note: "SIX-listed Swiss utility group; EEX participant (BKW FMB Energie AG).",
+    },
+    financials: {
+      fiscalYear: "FY2024",
+      revenue: "CHF 4.8bn",
+      adjEbitda: "CHF 0.8bn EBIT",
+      companyNumber: "CHE-103.258.498",
+      basis: "BKW Energie AG, consolidated (SIX-listed)",
+      source: "BKW annual report 2024",
+      retrieved: "10 Aug 2026",
+      url: "https://www.bkw.ch/en/about-us/investor-relations/geschaeftsbericht-2024",
     },
   },
   {
@@ -860,6 +1071,9 @@ export function dataField(key: string): DataField | undefined {
 // Mocked raw field values per counterparty (id -> field key -> value).
 export const COUNTERPARTY_FIELDS: Record<string, Record<string, number>> = {
   "yu-energy-gb": { netDebt: 650, netAssets: 520, revenue: 645, creditRating: 74, headcount: 800, memberships: 0, annualVolume: 2210 },
+  "trianel-de": { netDebt: 200, netAssets: 875, revenue: 8500, creditRating: 72, headcount: 500, memberships: 2, annualVolume: 50000 },
+  "verbund-e4b-at": { netDebt: 2500, netAssets: 11000, revenue: 8225, creditRating: 85, headcount: 4100, memberships: 2, annualVolume: 60000 },
+  "bkw-ch": { netDebt: 1250, netAssets: 5800, revenue: 4800, creditRating: 80, headcount: 12000, memberships: 2, annualVolume: 40000 },
   "vitalgas-nl": { netDebt: 220, netAssets: 900, revenue: 2400, creditRating: 90, headcount: 1200, memberships: 3, annualVolume: 3400 },
   "delta-energie-be": { netDebt: 140, netAssets: 520, revenue: 1100, creditRating: 82, headcount: 640, memberships: 2, annualVolume: 2100 },
   "haven-utilities-nl": { netDebt: 90, netAssets: 300, revenue: 780, creditRating: 76, headcount: 410, memberships: 1, annualVolume: 1250 },
@@ -1101,6 +1315,40 @@ const CORE_LIBRARY: LibraryCriterion[] = [
     scenarios: ["demand-market-access"],
     subCriteria: [
       { id: "annual-consumption", label: "Annual volume", dataField: "annualVolume", ruleType: "graded-min", thresholds: { floor: 500, ceiling: 5000 }, weight: 3, direction: "higher", missing: "zero", enabled: true, blocking: false },
+    ],
+  },
+  // Trading Market Access: three criteria wired to real signals (exchange membership,
+  // traded-volume proxy, net-asset proxy). The remaining spec criteria (product overlap,
+  // existing DMA relationships, regulatory permissions gap) stay as generated placeholders
+  // that skip until data is wired, so they show as "no data" rather than fabricated numbers.
+  {
+    id: "efet-without-access",
+    label: "EFET signatory without access",
+    description: "On the EFET / trader list but lacking direct exchange or clearing membership is SEE's opportunity.",
+    blocking: false,
+    scenarios: ["trading-market-access"],
+    subCriteria: [
+      { id: "efet-access-gap", label: "Exchange / clearing access gap", dataField: "memberships", ruleType: "graded-max", thresholds: { floor: 0, ceiling: 4 }, weight: 4, direction: "lower", missing: "skip", enabled: true, blocking: false },
+    ],
+  },
+  {
+    id: "trading-activity",
+    label: "Trading activity level",
+    description: "Estimated annual traded volume (proxy: annual volume).",
+    blocking: false,
+    scenarios: ["trading-market-access"],
+    subCriteria: [
+      { id: "traded-volume", label: "Traded volume", dataField: "annualVolume", ruleType: "graded-min", thresholds: { floor: 500, ceiling: 5000 }, weight: 3, direction: "higher", missing: "skip", enabled: true, blocking: false },
+    ],
+  },
+  {
+    id: "margin-capacity",
+    label: "Margining / collateral capacity",
+    description: "Available cash or net assets as a proxy for margin capacity.",
+    blocking: false,
+    scenarios: ["trading-market-access", "transport-capacity"],
+    subCriteria: [
+      { id: "margin-net-assets", label: "Net assets proxy", dataField: "netAssets", ruleType: "graded-min", thresholds: { floor: 100, ceiling: 800 }, weight: 2, direction: "higher", missing: "skip", enabled: true, blocking: false },
     ],
   },
 ];

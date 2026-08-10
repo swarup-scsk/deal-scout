@@ -14,7 +14,6 @@ import {
   dataQuality,
   defaultConfig,
   defaultSourceRegistry,
-  FEATURED_COUNTERPARTY_ID,
   jurisdictionOf,
   fitScore,
   inheritConfig,
@@ -305,15 +304,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (rawOps) {
         const o = JSON.parse(rawOps);
         if (Array.isArray(o.counterparties)) {
-          // Non-destructive: make sure the featured (real-data) counterparty is
-          // always present, even if the saved universe predates it.
+          // Non-destructive: make sure every real-data counterparty is present,
+          // even if the saved universe predates them.
           let list = o.counterparties as Counterparty[];
-          if (!list.some((c) => c.id === FEATURED_COUNTERPARTY_ID)) {
-            const featured = seedCounterparties.find(
-              (c) => c.id === FEATURED_COUNTERPARTY_ID,
-            );
-            if (featured) list = [featured, ...list];
-          }
+          const missingReal = seedCounterparties.filter(
+            (c) => c.realData && !list.some((x) => x.id === c.id),
+          );
+          if (missingReal.length) list = [...missingReal, ...list];
           setCounterpartyList(list);
         }
         if (Array.isArray(o.shortlists)) setShortlists(o.shortlists);

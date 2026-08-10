@@ -130,7 +130,7 @@ CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob
 
 // Real, sourced data on the featured counterparty only (FEATURED_COUNTERPARTY_ID = "yu-energy-gb").
 // Optional Counterparty fields: realData?, regulatory?, gleif?, financials?
-OfgemLicence            { companyNumber, electricity?, gas?, retrieved, electricityUrl, gasUrl }   // verified snapshot
+OfgemLicence            { companyNumber, regulator?, summary?, electricity?, gas?, retrieved, electricityUrl?, gasUrl?, links? }   // verified licence snapshot; regulator/summary/links generalise beyond Ofgem (BNetzA/CEREMP, E-Control, ElCom)
 GleifSnapshot           { lei, legalName, companyNumber, status, registrationStatus, corroboration, hq, lastUpdate, note? }  // live fetch fallback
 CompaniesHouseFinancials{ fiscalYear, revenue, revenueGrowth?, adjEbitda?, profitBeforeTax?, netCash?, deliveredVolume?, companyNumber, basis, source, retrieved, url }  // verified snapshot
 // Shown together in the deep-dive "Verified identity, licence and financials" card; GLEIF verified live via api.gleif.org.
