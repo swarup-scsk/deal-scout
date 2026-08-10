@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-08-06
+**Last updated:** 2026-08-10
 **Format:** Now / Next / Later, mapped to phases. Concrete items only.
 
 ## Done (POC → Prototype foundation)
@@ -38,6 +38,7 @@
 - "How it works" (`/faq`) expanded: added a high-level **data pipeline** (8 steps), an **originator workflow** strip and a **configuration workflow** strip, and refreshed the FAQs for the real data slices (GLEIF live, Ofgem + Companies House snapshots) and the configurable source registry.
 - **Prototype access gate**: a simple username/password sign-in gates the app (`src/lib/auth.tsx` + `LoginScreen`, gated in `__root.tsx`); the signed-in role is reflected in the app and a sign-out control sits in the sidebar. Session persists under `deal-scout.auth.v1`. Client-side only, not real security (see D25); SSO/OIDC is the production item.
 - Nav and shell tidy: **Library** moved first under Configuration; the scope subtitle removed from the sidebar; the Home "Micro-CRM" card renamed "CRM".
+- **Region-aware source resolution (Phase A of multi-region):** sources now declare `coverage` (region codes) and the field-to-source map is per region (`FieldSourceMap`), resolved by the counterparty's `jurisdiction` (exact region, then EU fallback, then default). GLEIF stays global. Seeded GB + DACH sources (Companies House, Ofgem, Bundesanzeiger, Firmenbuch, Zefix, BNetzA, E-Control, ElCom, EEX/ICE, Elexon, ENTSOG). The `/sources` screen gains a region selector and editable per-source coverage. Prompted by Michael's originator list being all DACH: the authoritative register varies by jurisdiction. Rules engine and scoring unchanged.
 
 ## Now (current prototype hardening)
 

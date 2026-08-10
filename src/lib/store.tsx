@@ -15,6 +15,7 @@ import {
   defaultConfig,
   defaultSourceRegistry,
   FEATURED_COUNTERPARTY_ID,
+  jurisdictionOf,
   fitScore,
   inheritConfig,
   scoreBreakdown,
@@ -41,6 +42,7 @@ import {
   type Shortlist,
   type Source,
   type SourceRegistry,
+  type FieldSourceMap,
   type SubCriterion,
 } from "./data";
 
@@ -154,9 +156,9 @@ interface StoreValue {
   addSource: () => void;
   updateSource: (key: string, patch: Partial<Omit<Source, "key">>) => void;
   deleteSource: (key: string) => void;
-  setFieldSource: (fieldKey: string, sourceKey: string) => void;
+  setFieldSource: (fieldKey: string, sourceKey: string, region?: string) => void;
   setTierWeight: (tier: number, weight: number) => void;
-  sourceForField: (fieldKey: string) => Source | undefined;
+  sourceForField: (fieldKey: string, jurisdiction?: string) => Source | undefined;
   dataQuality: (cp: Counterparty) => { score: number; hasLei: boolean };
 
   // Scenario composition (rules engine, Layer 2). Overrides on top of the library.
@@ -581,7 +583,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       ...r,
       sources: [
         ...r.sources,
-        { key: uid("src"), name: "New source", tier: 3, retrieved: "unverified" },
+        { key: uid("src"), name: "New source", tier: 3, retrieved: "unverified", coverage: ["GLOBAL"] },
       ],
     }));
   const updateSource = (key: string, patch: Partial<Omit<Source, "key">>) =>
@@ -590,26 +592,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       sources: r.sources.map((s) => (s.key === key ? { ...s, ...patch } : s)),
     }));
   const deleteSource = (key: string) =>
-    setSourceRegistry((r) => ({
-      ...r,
-      sources: r.sources.filter((s) => s.key !== key),
-      // Drop any field mapping that pointed at the removed source.
-      fieldSource: Object.fromEntries(
-        Object.entries(r.fieldSource).filter(([, v]) => v !== key),
-      ),
-    }));
-  const setFieldSource = (fieldKey: string, sourceKey: string) =>
-    setSourceRegistry((r) => ({
-      ...r,
-      fieldSource: { ...r.fieldSource, [fieldKey]: sourceKey },
-    }));
+    setSourceRegistry((r) => {
+      // Scrub the removed source key from every field mapping (string or region map).
+      const fieldSource: FieldSourceMap = {};
+      for (const [f, v] of Object.entries(r.fieldSource)) {
+        if (typeof v === "string") {
+          if (v !== key) fieldSource[f] = v;
+        } else {
+          const cleaned: Record<string, string> = {};
+          for (const [rg, sk] of Object.entries(v)) if (sk !== key) cleaned[rg] = sk;
+          if (Object.keys(cleaned).length) fieldSource[f] = cleaned;
+        }
+      }
+      return { ...r, sources: r.sources.filter((s) => s.key !== key), fieldSource };
+    });
+  // Set the source for a field. With no region (or "*") it sets the default; with a
+  // region it writes a per-region override, migrating a plain string to a region map.
+  const setFieldSource = (fieldKey: string, sourceKey: string, region?: string) =>
+    setSourceRegistry((r) => {
+      const cur = r.fieldSource[fieldKey];
+      let next: string | Record<string, string>;
+      if (!region || region === "*") {
+        next = cur && typeof cur === "object" ? { ...cur, "*": sourceKey } : sourceKey;
+      } else {
+        const base: Record<string, string> =
+          cur && typeof cur === "object"
+            ? { ...cur }
+            : typeof cur === "string" && cur
+              ? { "*": cur }
+              : {};
+        base[region] = sourceKey;
+        next = base;
+      }
+      return { ...r, fieldSource: { ...r.fieldSource, [fieldKey]: next } };
+    });
   const setTierWeight = (tier: number, weight: number) =>
     setSourceRegistry((r) => ({
       ...r,
       tierWeights: { ...r.tierWeights, [tier]: weight },
     }));
-  const sourceForFieldBound = (fieldKey: string) =>
-    sourceForField(fieldKey, sourceRegistry);
+  const sourceForFieldBound = (fieldKey: string, jurisdiction?: string) =>
+    sourceForField(fieldKey, jurisdiction, sourceRegistry);
   const dataQualityBound = (cp: Counterparty) => dataQuality(cp, sourceRegistry);
 
   // --- Scenario composition (rules engine, Layer 2) -----------------------
@@ -642,12 +665,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       };
     });
   };
-  const scoreFor = (counterpartyId: string, scenarioId: string) =>
-    scoreBreakdown(
+  const scoreFor = (counterpartyId: string, scenarioId: string) => {
+    const cp = counterpartyList.find((c) => c.id === counterpartyId);
+    return scoreBreakdown(
       resolveScenario(scenarioId),
       (f) => counterpartyFieldValue(counterpartyId, f),
       sourceRegistry,
+      cp ? jurisdictionOf(cp) : undefined,
     );
+  };
   const setScenarioCritOverride = (
     scenarioId: string,
     libraryId: string,

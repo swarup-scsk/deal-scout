@@ -14,7 +14,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DATA_FIELDS, DEFAULT_TIER_WEIGHTS, type Source } from "@/lib/data";
+import {
+  DATA_FIELDS,
+  DEFAULT_TIER_WEIGHTS,
+  EU_REGIONS,
+  REGIONS,
+  sourceKeyForField,
+  type Source,
+} from "@/lib/data";
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/sources")({
@@ -56,6 +63,7 @@ function Sources() {
   } = useStore();
   const { sources, tierWeights, fieldSource } = sourceRegistry;
   const [infoOpen, setInfoOpen] = useState<string | null>(null);
+  const [region, setRegion] = useState<string>("*"); // "*" = default / any region
 
   return (
     <div className="space-y-5">
@@ -122,9 +130,23 @@ function Sources() {
                 <Input
                   value={s.retrieved}
                   placeholder="freshness"
-                  className={`${inlineInput} w-36 text-xs text-muted-foreground`}
+                  className={`${inlineInput} w-28 text-xs text-muted-foreground`}
                   onChange={(e) =>
                     updateSource(s.key, { retrieved: e.target.value })
+                  }
+                />
+                <Input
+                  value={(s.coverage ?? ["GLOBAL"]).join(", ")}
+                  placeholder="regions"
+                  title="Regions this source covers, e.g. GB, DE, or GLOBAL"
+                  className={`${inlineInput} w-32 text-xs text-muted-foreground`}
+                  onChange={(e) =>
+                    updateSource(s.key, {
+                      coverage: e.target.value
+                        .split(",")
+                        .map((x) => x.trim().toUpperCase())
+                        .filter(Boolean),
+                    })
                   }
                 />
                 <button
@@ -216,15 +238,51 @@ function Sources() {
         </div>
       </Card>
 
-      {/* Field-to-source mapping -------------------------------------------*/}
+      {/* Field-to-source mapping (region-aware) ----------------------------*/}
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground">
-          Which source backs each field
+        <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+          <span className="text-sm font-semibold text-foreground">
+            Which source backs each field
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Region</span>
+            <Select value={region} onValueChange={setRegion}>
+              <SelectTrigger className="h-8 w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="*">Default (any region)</SelectItem>
+                {REGIONS.map((r) => (
+                  <SelectItem key={r.code} value={r.code}>
+                    {r.code} · {r.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
         <div className="divide-y divide-border">
           {DATA_FIELDS.map((f) => {
-            const mapped = fieldSource[f.key];
-            const src = sources.find((s) => s.key === mapped);
+            const jur = region === "*" ? undefined : region;
+            const resolvedKey = sourceKeyForField(f.key, jur, sourceRegistry);
+            const entry = fieldSource[f.key];
+            const explicit =
+              typeof entry === "object" && entry
+                ? entry[region]
+                : region === "*"
+                  ? typeof entry === "string"
+                    ? entry
+                    : undefined
+                  : undefined;
+            const shownKey = explicit ?? resolvedKey ?? "";
+            const src = sources.find((s) => s.key === resolvedKey);
+            const inherited = region !== "*" && !explicit;
+            const opts = sources.filter((s) => {
+              if (region === "*") return true;
+              const cov = s.coverage;
+              if (!cov || cov.includes("GLOBAL") || cov.includes(region)) return true;
+              return EU_REGIONS.includes(region) && cov.includes("EU");
+            });
             return (
               <div
                 key={f.key}
@@ -238,6 +296,11 @@ function Sources() {
                     </div>
                   )}
                 </div>
+                {inherited && (
+                  <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    inherited
+                  </span>
+                )}
                 {src && (
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${tierMeta(src.tier).tone}`}
@@ -247,14 +310,14 @@ function Sources() {
                 )}
                 <div className="w-72">
                   <Select
-                    value={mapped ?? ""}
-                    onValueChange={(v) => setFieldSource(f.key, v)}
+                    value={shownKey}
+                    onValueChange={(v) => setFieldSource(f.key, v, jur)}
                   >
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Choose a source" />
                     </SelectTrigger>
                     <SelectContent>
-                      {sources.map((s) => (
+                      {opts.map((s) => (
                         <SelectItem key={s.key} value={s.key}>
                           {s.name}
                         </SelectItem>
@@ -266,12 +329,18 @@ function Sources() {
             );
           })}
         </div>
+        <div className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+          {region === "*"
+            ? "Editing the default source used when no region-specific source is set."
+            : `Editing sources for ${region}. Fields with no ${region} source inherit the default (shown as "inherited").`}
+        </div>
       </Card>
 
       <p className="text-[11px] text-muted-foreground">
-        Live connections (credentials and API keys) are managed server-side in
-        production, not here. This screen governs which sources are trusted and
-        how much, using synthetic data in the prototype.
+        The authoritative source varies by the counterparty's jurisdiction, so the
+        mapping above is per region. Live connections (credentials and API keys)
+        are managed server-side in production, not here. Data is synthetic in the
+        prototype.
       </p>
     </div>
   );

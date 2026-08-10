@@ -118,6 +118,7 @@ export interface Counterparty {
   indicativeSizing: string;
   demandProfileFit: string;
   keyRisk: string;
+  jurisdiction?: string; // region code (GB, DE, AT, CH...); else derived from country
   // Optional real, sourced data (present only for the featured demo counterparty).
   realData?: boolean;
   regulatory?: OfgemLicence;
@@ -310,6 +311,7 @@ export const counterparties: Counterparty[] = [
     id: FEATURED_COUNTERPARTY_ID,
     company: "Yü Energy (Yu Energy Retail Ltd)",
     country: "United Kingdom",
+    jurisdiction: "GB",
     legalEntityName: "Yu Energy Retail Ltd",
     lei: "213800ACO9GDDBM7DS35",
     revenueEbitda: "£645.5m / £48.8m",
@@ -876,34 +878,78 @@ export function counterpartyFieldValue(cpId: string, key: string): number | unde
 // Tier 1 = official registers, 2 = market infrastructure, 3 = commercial, 4 = web/LLM.
 // ---------------------------------------------------------------------------
 
+// Regions / jurisdictions. The authoritative source for a field varies by the
+// counterparty's jurisdiction, so sources declare coverage and the field-to-source
+// map can vary per region. GLOBAL covers everywhere; EU is the CEREMP fallback.
+export const REGIONS: { code: string; label: string }[] = [
+  { code: "GB", label: "United Kingdom" },
+  { code: "DE", label: "Germany" },
+  { code: "AT", label: "Austria" },
+  { code: "CH", label: "Switzerland" },
+  { code: "NL", label: "Netherlands" },
+  { code: "BE", label: "Belgium" },
+];
+// EU / EEA regions we handle (drives the EU CEREMP fallback in resolution).
+export const EU_REGIONS = ["DE", "AT", "NL", "BE"];
+
+const COUNTRY_TO_REGION: Record<string, string> = {
+  "united kingdom": "GB",
+  uk: "GB",
+  "great britain": "GB",
+  germany: "DE",
+  austria: "AT",
+  switzerland: "CH",
+  netherlands: "NL",
+  belgium: "BE",
+};
+
+// The counterparty's jurisdiction code (explicit field, else derived from country).
+export function jurisdictionOf(cp: {
+  jurisdiction?: string;
+  country?: string;
+}): string | undefined {
+  if (cp.jurisdiction) return cp.jurisdiction;
+  return COUNTRY_TO_REGION[(cp.country ?? "").trim().toLowerCase()];
+}
+
 export interface Source {
   key: string;
   name: string;
   tier: 1 | 2 | 3 | 4;
   retrieved: string; // mock freshness label
   info?: string; // what the source is and how it is accessed (guidance)
+  coverage?: string[]; // region codes covered; ["GLOBAL"] or omitted = any region
 }
 
 export const SOURCES: Source[] = [
-  { key: "acer-ceremp", name: "ACER CEREMP register", tier: 1, retrieved: "today", info: "EU-wide register of REMIT wholesale market participants, with ACER codes. Public web and bulk download." },
-  { key: "ofgem", name: "Ofgem licensee list", tier: 1, retrieved: "16 Jul 2026", info: "GB gas and electricity licensees (suppliers, shippers, generators). Published as PDF lists, refreshed roughly monthly." },
-  { key: "gleif", name: "GLEIF (LEI)", tier: 1, retrieved: "live", info: "Global legal-entity identifier register. Free JSON API plus bulk golden copy; used as the primary join key." },
-  { key: "companies-house", name: "Companies House", tier: 1, retrieved: "2 days ago", info: "UK company register and filed accounts. Free API plus filing documents (iXBRL) for financials." },
-  { key: "eex", name: "EEX participants", tier: 2, retrieved: "this week", info: "EEX exchange and ECC clearing membership lists. Confirms a firm actually trades. Public web." },
-  { key: "entsog", name: "ENTSOG / GIE", tier: 2, retrieved: "today", info: "Gas transparency (ENTSOG) and storage / LNG (GIE) flows and capacity. Free APIs." },
-  { key: "dnb", name: "Dun & Bradstreet", tier: 3, retrieved: "2 weeks ago", info: "Commercial firmographics and credit (size, hierarchy, contacts). Paid; used only after identity is resolved." },
-  { key: "web", name: "Company website (LLM)", tier: 4, retrieved: "unverified", info: "Open web and company sites via allow-listed retrieval. Augments only, never a decision-critical source on its own." },
+  { key: "gleif", name: "GLEIF (LEI)", tier: 1, retrieved: "live", coverage: ["GLOBAL"], info: "Global legal-entity identifier register. Free JSON API plus bulk golden copy; used as the primary join key everywhere." },
+  { key: "acer-ceremp", name: "ACER CEREMP register", tier: 1, retrieved: "today", coverage: ["EU"], info: "EU-wide register of REMIT wholesale market participants, with ACER codes. Public web and bulk download." },
+  { key: "ofgem", name: "Ofgem licensee list", tier: 1, retrieved: "16 Jul 2026", coverage: ["GB"], info: "GB gas and electricity licensees. Published as PDF lists, refreshed roughly monthly." },
+  { key: "companies-house", name: "Companies House (GB)", tier: 1, retrieved: "2 days ago", coverage: ["GB"], info: "UK company register and filed accounts. Free API plus filing documents (iXBRL) for financials." },
+  { key: "bnetza", name: "BNetzA / CEREMP (DE)", tier: 1, retrieved: "this month", coverage: ["DE"], info: "German regulator market-participant and REMIT registration (via CEREMP)." },
+  { key: "bundesanzeiger", name: "Bundesanzeiger (DE)", tier: 1, retrieved: "last filing", coverage: ["DE"], info: "German federal gazette: filed company accounts and financials." },
+  { key: "e-control", name: "E-Control (AT)", tier: 1, retrieved: "this month", coverage: ["AT"], info: "Austrian energy regulator: licensed suppliers and market participants." },
+  { key: "firmenbuch", name: "Firmenbuch (AT)", tier: 1, retrieved: "last filing", coverage: ["AT"], info: "Austrian company register and filed accounts." },
+  { key: "elcom", name: "ElCom (CH)", tier: 1, retrieved: "this month", coverage: ["CH"], info: "Swiss electricity regulator: grid and supply participants." },
+  { key: "zefix", name: "Zefix (CH register)", tier: 1, retrieved: "last filing", coverage: ["CH"], info: "Swiss central business-name index and cantonal commercial registers." },
+  { key: "eex", name: "EEX / EPEX participants", tier: 2, retrieved: "this week", coverage: ["EU", "DE", "AT", "CH", "GB"], info: "EEX and EPEX SPOT membership lists. Confirms a firm actually trades. Public web." },
+  { key: "ice", name: "ICE Endex membership", tier: 2, retrieved: "this week", coverage: ["GB"], info: "ICE Endex trading membership. GB and NW-Europe activity signal." },
+  { key: "entsog", name: "ENTSOG / GIE", tier: 2, retrieved: "today", coverage: ["EU", "DE", "AT", "CH", "GB"], info: "Gas transparency (ENTSOG) and storage / LNG (GIE) flows and capacity. Free APIs." },
+  { key: "elexon", name: "Elexon BMRS (GB)", tier: 2, retrieved: "today", coverage: ["GB"], info: "GB balancing and settlement data by BM Unit. Public API." },
+  { key: "dnb", name: "Dun & Bradstreet", tier: 3, retrieved: "2 weeks ago", coverage: ["GLOBAL"], info: "Commercial firmographics and credit (size, hierarchy, contacts). Paid; used only after identity is resolved." },
+  { key: "web", name: "Company website (LLM)", tier: 4, retrieved: "unverified", coverage: ["GLOBAL"], info: "Open web and company sites via allow-listed retrieval. Augments only, never a decision-critical source on its own." },
 ];
 
-// Which source backs each data field (prototype mapping).
-export const FIELD_SOURCE: Record<string, string> = {
-  netDebt: "companies-house",
-  netAssets: "companies-house",
-  revenue: "dnb",
+// Which source backs each data field, per region. A plain string is region-agnostic;
+// an object maps region codes to source keys with "*" as the default fallback.
+export const FIELD_SOURCE: FieldSourceMap = {
+  netDebt: { "*": "dnb", GB: "companies-house", DE: "bundesanzeiger", AT: "firmenbuch", CH: "zefix" },
+  netAssets: { "*": "dnb", GB: "companies-house", DE: "bundesanzeiger", AT: "firmenbuch", CH: "zefix" },
+  revenue: { "*": "dnb", GB: "companies-house", DE: "bundesanzeiger", AT: "firmenbuch", CH: "zefix" },
   creditRating: "dnb",
   headcount: "web",
-  memberships: "eex",
-  annualVolume: "entsog",
+  memberships: { "*": "eex", GB: "ice", EU: "eex" },
+  annualVolume: { "*": "entsog", GB: "elexon", EU: "entsog" },
 };
 
 // Per-tier trust weight applied to a source when scoring data quality (0-1).
@@ -917,10 +963,14 @@ export const DEFAULT_TIER_WEIGHTS: Record<number, number> = {
 // The configurable source registry: which sources exist, how much each tier is
 // trusted, and which source backs each data field. Seeded from the constants
 // above; persisted in the config blob and edited on the Sources admin screen.
+// data-field key -> source key (region-agnostic string) or a per-region map
+// ({ "*": default, GB: ..., DE: ... }).
+export type FieldSourceMap = Record<string, string | Record<string, string>>;
+
 export interface SourceRegistry {
   sources: Source[];
   tierWeights: Record<number, number>;
-  fieldSource: Record<string, string>; // data-field key -> source key
+  fieldSource: FieldSourceMap;
 }
 
 export const defaultSourceRegistry: SourceRegistry = {
@@ -929,11 +979,31 @@ export const defaultSourceRegistry: SourceRegistry = {
   fieldSource: FIELD_SOURCE,
 };
 
+// Resolve the source key for a field in a jurisdiction: exact region, then the EU
+// fallback (for EU regions), then the "*" / GLOBAL default.
+export function sourceKeyForField(
+  fieldKey: string,
+  jurisdiction: string | undefined,
+  reg: SourceRegistry = defaultSourceRegistry,
+): string | undefined {
+  const entry = reg.fieldSource[fieldKey];
+  if (entry === undefined) return undefined;
+  if (typeof entry === "string") return entry;
+  const j = jurisdiction;
+  return (
+    (j ? entry[j] : undefined) ??
+    (j && EU_REGIONS.includes(j) ? entry["EU"] : undefined) ??
+    entry["*"] ??
+    entry["GLOBAL"]
+  );
+}
+
 export function sourceForField(
   fieldKey: string,
+  jurisdiction?: string,
   reg: SourceRegistry = defaultSourceRegistry,
 ): Source | undefined {
-  const key = reg.fieldSource[fieldKey];
+  const key = sourceKeyForField(fieldKey, jurisdiction, reg);
   return reg.sources.find((s) => s.key === key);
 }
 
@@ -951,12 +1021,13 @@ export function dataQuality(
   reg: SourceRegistry = defaultSourceRegistry,
 ): { score: number; hasLei: boolean } {
   const hasLei = !!cp.lei && cp.lei !== "n/a";
+  const jur = jurisdictionOf(cp);
   const fields = COUNTERPARTY_FIELDS[cp.id];
   const present = fields ? Object.keys(fields) : [];
   if (present.length === 0) return { score: hasLei ? 40 : 20, hasLei };
   const tw =
     present.reduce(
-      (s, f) => s + tierWeight(sourceForField(f, reg)?.tier ?? 4, reg.tierWeights),
+      (s, f) => s + tierWeight(sourceForField(f, jur, reg)?.tier ?? 4, reg.tierWeights),
       0,
     ) / present.length;
   const idBonus = hasLei ? 1 : 0.7;
@@ -1088,6 +1159,7 @@ export function scoreBreakdown(
   criteria: EffectiveCriterion[],
   getValue: (field: string) => number | undefined,
   reg: SourceRegistry = defaultSourceRegistry,
+  jurisdiction?: string,
 ): ScoreBreakdown {
   let dealBlocked = false;
   let fitNum = 0;
@@ -1103,7 +1175,7 @@ export function scoreBreakdown(
       if (!s.enabled) continue;
       const raw = getValue(s.dataField);
       const fld = dataField(s.dataField);
-      const src = sourceForField(s.dataField, reg);
+      const src = sourceForField(s.dataField, jurisdiction, reg);
       let skipped = false;
       let ss = 0;
       let subBlocked = false;

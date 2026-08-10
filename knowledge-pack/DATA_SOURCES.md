@@ -1,6 +1,6 @@
 # Data Sources, Traceability and Guardrails
 
-**Last updated:** 2026-08-05
+**Last updated:** 2026-08-10
 **Why this doc:** the prototype uses mocked data. For production the counterparty universe must be anchored on authoritative registers, keyed on stable identifiers, and augmented (not replaced) by the LLM. This lists the sources to use, a quality-tier weighting, and the guardrails that keep scores traceable. Source of the research: web review, Aug 2026.
 
 ## Source quality tiers
@@ -100,6 +100,20 @@ One counterparty in the universe, **Yü Energy (Yu Energy Retail Ltd, company 08
 - **Companies House (Tier 1), verified snapshot.** A "Financials" card shows the real audited FY2024 figures for Yü Group plc (company 10004236): revenue £645.5m (+40%), adjusted EBITDA £48.8m, profit before tax £44.5m, net cash £80.2m, 2.21 TWh delivered, with a link to the filed annual report. Not a live call: the Companies House API needs a secret key (must not sit in the client) and detailed figures live inside iXBRL accounts, so the honest approach is a dated, sourced snapshot; production wires it server-side.
 
 Everything else in the app remains synthetic. This proves the provenance model end to end against real regulators without standing up the full production feed set.
+
+## Regional source map (Phase A, prototype)
+
+The authoritative source varies by jurisdiction, so each source declares `coverage` (region codes) and the field-to-source map is per region. Identity (GLEIF) is global. Indicative mapping:
+
+| Field | GB | DE | AT | CH | EU / default |
+|---|---|---|---|---|---|
+| Identity / LEI | GLEIF | GLEIF | GLEIF | GLEIF | GLEIF (global) |
+| Licence / registration | Ofgem | BNetzA / CEREMP | E-Control | ElCom | ACER CEREMP (EU) |
+| Financials | Companies House | Bundesanzeiger | Firmenbuch | Zefix | D&B (fallback) |
+| Exchange membership | ICE | EEX | EEX | EEX | EEX |
+| Volume / activity | Elexon | ENTSOG | ENTSOG | ENTSOG | ENTSOG |
+
+Resolution order per field: exact region, then EU fallback (for EU regions), then the "*" / GLOBAL default. Switzerland is outside the EU, so CEREMP does not apply. In production the pipeline selects the connector per jurisdiction from this same registry (Phase B).
 
 ## Credentials and API keys (deferred, by design)
 

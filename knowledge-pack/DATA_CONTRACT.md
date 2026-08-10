@@ -1,6 +1,6 @@
 # Data Contract
 
-**Last updated:** 2026-08-06
+**Last updated:** 2026-08-10
 **Why this doc:** Scout has no backend yet, but these interfaces are shared across the app and must not drift: the **core domain types**, the **two localStorage blobs**, the **shortlist and CRM types**, and the **n8n workflow contracts**. Change either side of these deliberately.
 
 All types live in `src/lib/data.ts`. State and persistence live in `src/lib/store.tsx`.
@@ -74,7 +74,7 @@ Persistence is split into two keys with different save models.
   "commTemplates":         [ …CommTemplate ],
   "criteriaLibrary":       [ …LibraryCriterion ],
   "scenarioRules":         { [scenarioId]: { criteria: { [libraryId]: CritOverride } } },
-  "sourceRegistry":        { sources: [ …Source ], tierWeights: { 1..4: number }, fieldSource: { [fieldKey]: sourceKey } }
+  "sourceRegistry":        { sources: [ …Source ], tierWeights: { 1..4: number }, fieldSource: { [fieldKey]: sourceKey | { [region]: sourceKey } } }
 }
 ```
 
@@ -115,13 +115,16 @@ Note    { id, accountId, body, author, createdAt, updatedAt }   // ops blob; acc
 
 // Data sources / provenance (see DATA_SOURCES.md). SOURCES / FIELD_SOURCE / DEFAULT_TIER_WEIGHTS
 // are seed constants in data.ts; the live values are the configurable SourceRegistry (config blob).
-Source          { key, name, tier: 1|2|3|4, retrieved, info? }   // info = editable guidance note, shown via the info icon on /sources
-SourceRegistry  { sources: Source[], tierWeights: Record<tier, number>, fieldSource: Record<fieldKey, sourceKey> }  // persisted as sourceRegistry
-sourceForField(fieldKey, reg?) -> Source | undefined            // reg defaults to defaultSourceRegistry
+Source          { key, name, tier: 1|2|3|4, retrieved, info?, coverage? }   // coverage = region codes (["GLOBAL"], ["GB"], ["EU"], ["DE"]...)
+FieldSourceMap  = Record<fieldKey, string | Record<region, sourceKey>>       // plain string = region-agnostic; object keyed by region, "*" is the default
+SourceRegistry  { sources: Source[], tierWeights: Record<tier, number>, fieldSource: FieldSourceMap }  // persisted as sourceRegistry
+sourceKeyForField(fieldKey, jurisdiction?, reg?) -> sourceKey?  // resolves: exact region, then EU fallback (EU_REGIONS), then "*"/GLOBAL default
+sourceForField(fieldKey, jurisdiction?, reg?) -> Source | undefined
 tierWeight(tier, weights?) -> number                            // 0-1 trust weight per tier
-dataQuality(cp, reg?) -> { score, hasLei }                      // 0-100 evidence/confidence, separate from fit
-// The store binds sourceForField/dataQuality to the live registry and passes it into scoreBreakdown;
-// scoreBreakdown sub items carry sourceTier + retrieved for the deep-dive provenance. Edited on /sources.
+dataQuality(cp, reg?) -> { score, hasLei }                      // uses jurisdictionOf(cp) to pick region-correct sources
+jurisdictionOf(cp) -> region code | undefined                   // cp.jurisdiction, else derived from cp.country (see REGIONS, EU_REGIONS)
+// Region-aware (Phase A): scoreFor passes the counterparty's jurisdiction into scoreBreakdown; sub items carry sourceTier + retrieved.
+// Sources are mapped per region on /sources (region selector); coverage is editable per source. Old string-valued fieldSource still resolves.
 
 CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob; scenarioId undefined = universal
 
