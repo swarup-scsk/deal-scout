@@ -1,6 +1,6 @@
 # Roadmap
 
-**Last updated:** 2026-08-05
+**Last updated:** 2026-08-06
 **Format:** Now / Next / Later, mapped to phases. Concrete items only.
 
 ## Done (POC → Prototype foundation)
@@ -32,7 +32,12 @@
 - Data-sources epic, slice 1 built (mocked): a **source registry** with quality tiers (T1-T4) in `data.ts`, **per-field provenance** (source name + tier + retrieved) shown in the deep-dive breakdown, and a per-counterparty **data-quality score** (`dataQuality`) surfaced as a chip on the deep dive and a "Data quality" column on the Counterparties table. Separate from fit.
 - Business-user FAQ page (`/faq`, "How it works" under Help in the nav): plain-language flow strip, source-tier legend, and an accordion covering data sources, tiers, fit vs data quality, scoring, traceability, AI guardrails, who configures what, and mocked-data status.
 - First **real data integration** (CEO demo): featured counterparty Yü Energy (Yu Energy Retail Ltd, 08246810) carries genuine Ofgem licence data (verified snapshot) and a **live GLEIF LEI** lookup (browser fetch, resolves to Yü Group plc, LEI 213800ACO9GDDBM7DS35) on a deep-dive Regulatory identity card, with snapshot fallback. Proves the provenance model against real regulators. See `DATA_SOURCES.md` and the demo runbook.
-- Data-sources epic, slice 2 (configurable source registry): `/sources` admin screen to add/edit/remove sources, set each source's tier, tune the per-tier trust weight, and map each data field to a source. Registry persists in the config blob as `sourceRegistry`; `sourceForField` / `tierWeight` / `dataQuality` / `scoreBreakdown` now read the live registry (backward-compatible defaults). Credentials / API keys deliberately excluded (production / server-side). Nav item added under Configuration.
+- Data-sources epic, slice 2 (configurable source registry): `/sources` admin screen to add/edit/remove sources, set each source's tier, tune the per-tier trust weight, and map each data field to a source. Registry persists in the config blob as `sourceRegistry`; `sourceForField` / `tierWeight` / `dataQuality` / `scoreBreakdown` now read the live registry (backward-compatible defaults). Credentials / API keys deliberately excluded (production / server-side). Nav item added under Configuration. Each source also carries an editable `info` note (info icon on `/sources`).
+- Deep-dive consolidation (UX): the real, sourced data is combined into one **Verified identity, licence and financials** card (identity/profile strip + Ofgem licence + live GLEIF verify + Companies House financials). The company summary and profile cards are merged (score bars removed), the score breakdown sits under the qualification assessment (half width), and the **Origination decision** is a full-width, emphasised card. Fields already shown in the verified card, and evidence bullets that restate it, are hidden for the featured counterparty to remove duplication.
+- Counterparties table tidy: **Data quality** moved before Country; the scenario selector is emphasised with a "Showing" label, primary styling and a contextual hint (scored vs universe); the shortlist CTA in the table is reduced to icon + count.
+- "How it works" (`/faq`) expanded: added a high-level **data pipeline** (8 steps), an **originator workflow** strip and a **configuration workflow** strip, and refreshed the FAQs for the real data slices (GLEIF live, Ofgem + Companies House snapshots) and the configurable source registry.
+- **Prototype access gate**: a simple username/password sign-in gates the app (`src/lib/auth.tsx` + `LoginScreen`, gated in `__root.tsx`); the signed-in role is reflected in the app and a sign-out control sits in the sidebar. Session persists under `deal-scout.auth.v1`. Client-side only, not real security (see D25); SSO/OIDC is the production item.
+- Nav and shell tidy: **Library** moved first under Configuration; the scope subtitle removed from the sidebar; the Home "Micro-CRM" card renamed "CRM".
 
 ## Now (current prototype hardening)
 

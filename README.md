@@ -49,8 +49,10 @@ git push
 | `src/routes/scenario.tsx` | Configure scenarios (pillars, transaction types, criteria, weights, rules; Admin/User role). |
 | `src/routes/prospecting.tsx` | Counterparties universe: search, apply-scenario overlay, ranked table. |
 | `src/routes/qualification.$id.tsx` | Deep dive + recorded go / no-go. |
-| `src/routes/__root.tsx`, `index.tsx` | Root layout; `/` redirects to `/scenario`. |
-| `src/routes/index.tsx` | Landing page (CTA into Counterparties). |
+| `src/routes/__root.tsx` | Root layout; wraps the app in the auth gate (login vs app) then `AppShell` + `<Outlet/>`. |
+| `src/routes/index.tsx` | Landing page (CTA into Counterparties; CRM card). |
+| `src/lib/auth.tsx` | Prototype sign-in gate: `AuthProvider`, demo accounts, session in `deal-scout.auth.v1`. Client-side only, not real security. |
+| `src/components/LoginScreen.tsx` | Username / password login screen shown when signed out. |
 | `src/routes/shortlists.tsx` | Named shortlists (playlist-style). |
 | `src/routes/crm.tsx`, `src/routes/crm.index.tsx`, `src/routes/crm.$accountId.tsx` | Micro-CRM layout, list and account detail. |
 | `src/routes/templates.tsx` | Communication template management (Admin). |
@@ -60,8 +62,8 @@ git push
 | `src/routes/faq.tsx` | Business-user "How it works" FAQ (data flow, source tiers, guardrails). |
 | `src/components/AddToShortlist.tsx` | Reusable add-to-shortlist dialog (table + deep dive). |
 | `src/lib/data.ts` | Domain types + mocked seed data (see `knowledge-pack/DATA_CONTRACT.md`). |
-| `src/lib/store.tsx` | Context store + two localStorage blobs (`deal-scout.state.v2` config, `deal-scout.ops.v1` operational). |
-| `src/components/AppShell.tsx` | Header / nav / scope shell. |
+| `src/lib/store.tsx` | Context store + two localStorage blobs (`deal-scout.state.v2` config, `deal-scout.ops.v1` operational). Auth session is a third key (`deal-scout.auth.v1`, owned by `auth.tsx`). |
+| `src/components/AppShell.tsx` | Left sidebar nav (grouped), signed-in user and sign-out. |
 | `src/components/ui/*` | shadcn/ui components. |
 | `src/styles.css` | Design tokens (oklch). |
 

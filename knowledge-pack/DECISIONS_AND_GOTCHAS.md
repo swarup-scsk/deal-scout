@@ -1,6 +1,6 @@
 # Decisions and Gotchas
 
-**Last updated:** 2026-08-05
+**Last updated:** 2026-08-06
 
 ## Decisions (lightweight ADR - what, why)
 
@@ -30,6 +30,7 @@
 | D20 | Rules engine is **two-tier**: Layer 1 **library** (criteria, sub-criteria, deterministic logic, default weights) is **Admin-only** and shared; Layer 2 **origination configuration** lets the **originator (User)** pull library items into a scenario and tweak locally (select on/off, adjust thresholds and weights) as per-scenario overrides, with reset-to-library. Revises D18's "Admin-only for everything". | Owner clarification (30 Jul): admin owns definitions; originators compose and fine-tune per their requirement. |
 | D24 | **One real-data counterparty for the CEO demo.** Yü Energy (Yu Energy Retail Ltd, 08246810) carries genuine Ofgem licence data (verified snapshot, since Ofgem publishes PDFs, no API), **live GLEIF LEI** lookup (browser fetch to `api.gleif.org`, resolves to parent Yü Group plc, LEI 213800ACO9GDDBM7DS35, snapshot fallback), and **Companies House audited financials** as a verified snapshot (FY2024: revenue £645.5m, adj EBITDA £48.8m, net cash £80.2m). Rest of the universe stays synthetic. | Proves the provenance/traceability model against real regulators for the demo without the full production feed set. GLEIF JSON is browser-safe (live); Ofgem PDF and Companies House (secret API key, iXBRL accounts) are production-side, so snapshots. |
 | D23 | **Source registry is configurable** (tiers, per-tier weight, and field-to-source mapping) via a `/sources` admin screen, persisted in the config blob as `sourceRegistry`. **Credentials / API keys are deliberately excluded** from the app and deferred to the production server-side / n8n credential store. | Owner (5 Aug): making trusted sources and their weights configurable strengthens the traceability story and is low-risk; secrets must never live in the client or `localStorage`, so real connection management belongs to the production integration layer, not the prototype. |
+| D25 | **Prototype access gate** is a simple **client-side username/password** sign-in (`src/lib/auth.tsx`, gated in `__root.tsx`), with demo accounts in code, session in `deal-scout.auth.v1`, and role reflected on sign-in. It is **not real security** (credentials ship in the client bundle and can be bypassed). | Owner asked for a basic id/password to deter casual access to the demo URL. Real authentication is SSO/OIDC in production (production-readiness checklist, PR-07); the gate must not be mistaken for it. |
 
 ## Gotchas (traps - do not relearn these)
 
@@ -46,7 +47,8 @@
 - Commits on the connected branch **sync into the Lovable editor**, so keep the branch in a working state.
 
 ### State / persistence
-- There are now **two localStorage keys** (see DATA_CONTRACT.md). Config: **`deal-scout.state.v2`** (manual Save-all). Operational data: **`deal-scout.ops.v1`** (auto-saved via effect): counterparties, shortlists, accounts, contacts, commLogs.
+- There are now **three localStorage keys** (see DATA_CONTRACT.md). Config: **`deal-scout.state.v2`** (manual Save-all). Operational data: **`deal-scout.ops.v1`** (auto-saved via effect): counterparties, shortlists, accounts, contacts, commLogs, notes. Auth session: **`deal-scout.auth.v1`** (prototype sign-in, written by `auth.tsx`, not the store).
+- `AuthGate` in `__root.tsx` renders `null` until auth state has hydrated (`ready`) to avoid an SSR/hydration flash; routes only mount once signed in.
 - Config key: when the shape changes incompatibly, **bump the version** or stale saved state shadows new seed data (this happened: v1 → v2). When adding a config field, update **four places together**: the `useState`, the hydrate `if` block, the empty-storage else snapshot, and `currentSnap`.
 - Ops key: when adding a slice, update **three places**: the `useState`, the ops hydrate block, and the auto-save effect (dependency array + written object).
 - `counterpartyList` is now **persisted** (under the ops key), so shortlists and CRM survive reloads. `role` and `decisions` remain in-memory only.

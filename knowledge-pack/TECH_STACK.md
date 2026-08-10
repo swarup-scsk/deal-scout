@@ -1,6 +1,6 @@
 # Tech Stack
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-08-06
 **Scope:** the active `deal-scout` (Scout) app. The Hub and Power Trader repos use the same TanStack Start stack.
 
 ## Tools and services (and why)
@@ -64,6 +64,10 @@ Today the app is a **client-only prototype**: all data is mocked in `data.ts`, a
 - **Prototype:** served via Lovable; Nitro build targets Cloudflare by default.
 - **n8n:** runs the automation workflows (separate host).
 - **MVP destination:** undecided. Salesforce / Agentforce is the candidate for the Population → Ranking → Pitch → CRM spine, to be decided layer by layer.
+
+## Access (prototype)
+
+A **client-side sign-in gate** (`src/lib/auth.tsx` + `LoginScreen`, gated in `__root.tsx`) protects the demo. Demo accounts live in code (admin / originator), the session persists in `deal-scout.auth.v1`, and the signed-in role is reflected in the app. This is **not real security** (credentials ship in the client bundle); production uses SSO / OIDC. See DECISIONS D25.
 
 ## Environment variables
 

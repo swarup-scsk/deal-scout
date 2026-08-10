@@ -1,6 +1,6 @@
 # Data Contract
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-08-06
 **Why this doc:** Scout has no backend yet, but these interfaces are shared across the app and must not drift: the **core domain types**, the **two localStorage blobs**, the **shortlist and CRM types**, and the **n8n workflow contracts**. Change either side of these deliberately.
 
 All types live in `src/lib/data.ts`. State and persistence live in `src/lib/store.tsx`.
@@ -95,7 +95,9 @@ When adding a field here, add it in four places together - the `useState`, the h
 
 When adding a slice here, add it in three places: the `useState`, the ops hydrate block, and the auto-save effect's dependency array + written object.
 
-**Still in-memory only:** `role` ("Admin" | "User"), `decisions`, UI open/edit state.
+**C. Auth blob - `deal-scout.auth.v1`.** Written by the prototype sign-in gate (`src/lib/auth.tsx`), separate from the store. Holds the signed-in user `{ username, name, role }`. Client-side gate only, not real security (see DECISIONS D25).
+
+**Still in-memory only:** `role` ("Admin" | "User") (set on sign-in, then in-memory), `decisions`, UI open/edit state.
 
 ## 3. Shortlist and CRM types (`src/lib/data.ts`)
 
@@ -122,6 +124,13 @@ dataQuality(cp, reg?) -> { score, hasLei }                      // 0-100 evidenc
 // scoreBreakdown sub items carry sourceTier + retrieved for the deep-dive provenance. Edited on /sources.
 
 CommTemplate { id, channel, name, subject?, body, scenarioId? }   // config blob; scenarioId undefined = universal
+
+// Real, sourced data on the featured counterparty only (FEATURED_COUNTERPARTY_ID = "yu-energy-gb").
+// Optional Counterparty fields: realData?, regulatory?, gleif?, financials?
+OfgemLicence            { companyNumber, electricity?, gas?, retrieved, electricityUrl, gasUrl }   // verified snapshot
+GleifSnapshot           { lei, legalName, companyNumber, status, registrationStatus, corroboration, hq, lastUpdate, note? }  // live fetch fallback
+CompaniesHouseFinancials{ fiscalYear, revenue, revenueGrowth?, adjEbitda?, profitBeforeTax?, netCash?, deliveredVolume?, companyNumber, basis, source, retrieved, url }  // verified snapshot
+// Shown together in the deep-dive "Verified identity, licence and financials" card; GLEIF verified live via api.gleif.org.
 
 // Rules engine (config blob). See REQUIREMENTS_rules-engine.md.
 DataField      { key, label, unit?, source }                       // DATA_FIELDS catalogue (constant, not persisted)
