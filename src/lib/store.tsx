@@ -638,7 +638,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // --- Scenario composition (rules engine, Layer 2) -----------------------
   const resolveScenario = (scenarioId: string): EffectiveCriterion[] => {
     const rule = scenarioRules[scenarioId];
-    return criteriaLibraryList.map((c) => {
+    // Only the criteria tagged for this scenario (untagged = applies to all).
+    const applicable = criteriaLibraryList.filter(
+      (c) => !c.scenarios || c.scenarios.length === 0 || c.scenarios.includes(scenarioId),
+    );
+    const list = applicable.length ? applicable : criteriaLibraryList;
+    return list.map((c) => {
       const ov = rule?.criteria[c.id];
       return {
         id: c.id,

@@ -139,7 +139,12 @@ CompaniesHouseFinancials{ fiscalYear, revenue, revenueGrowth?, adjEbitda?, profi
 DataField      { key, label, unit?, source }                       // DATA_FIELDS catalogue (constant, not persisted)
 RuleType       = "graded-min"|"graded-max"|"gate-min"|"gate-max"|"between"|"boolean"
 SubCriterion   { id, label, dataField, ruleType, thresholds{floor?,ceiling?,t?,x?,y?}, weight, direction, missing, enabled, blocking }
-LibraryCriterion { id, label, description?, blocking, subCriteria: SubCriterion[] }   // persisted as criteriaLibrary
+LibraryCriterion { id, label, description?, blocking, scenarios?, subCriteria: SubCriterion[] }   // persisted as criteriaLibrary; scenarios = ids this criterion applies to (undefined/empty = all)
+// The library now covers Michael's full scenario/criteria set: the wired Demand Market Access
+// criteria (real data fields) plus every other scenario's criteria generated from scenarios[].spec
+// (deduped by key, tagged per scenario, inverse -> graded-max, optional -> lower weight, missing: "skip").
+// resolveScenario filters the library by scenario membership. CritBreakdown gains noData (all subs
+// skipped / no data): excluded from the fit and shown as "no data" in the deep-dive breakdown.
 ```
 
 Rules engine (both layers built): the **criteria library** (Admin) lives in the config blob under `criteriaLibrary`; the data-field catalogue `DATA_FIELDS` and mocked per-counterparty values `COUNTERPARTY_FIELDS` are constants in `data.ts`. **Layer 2** scenario overrides live in the config blob under `scenarioRules` (`CritOverride = { enabled?, weight?, subOverrides?: { [subId]: { enabled?, weight?, thresholds? } } }`). `resolveScenario(scenarioId)` merges library + overrides into `EffectiveCriterion[]`; `scoreFor(cpId, scenarioId)` runs `subScore` and `scoreBreakdown` to produce a `ScoreBreakdown { fit, blocked, criteria[...] }`. The Counterparties table fit + "Blocked" flag and the deep-dive breakdown-to-source both use `scoreFor`. The old `/scenario` (Configure) screen is legacy; composition now lives at `/scenarios`.

@@ -721,7 +721,7 @@ function ScoreBreakdownBody({ breakdown }: { breakdown: ScoreBreakdown }) {
               <span className="text-xs text-muted-foreground">
                 weight {c.weight} · score{" "}
                 <span className="font-semibold text-foreground">
-                  {c.blocked ? "blocked" : c.score}
+                  {c.blocked ? "blocked" : c.noData ? "no data" : c.score}
                 </span>
               </span>
             </div>

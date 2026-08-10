@@ -831,6 +831,7 @@ export interface LibraryCriterion {
   label: string;
   description?: string;
   blocking: boolean;
+  scenarios?: string[]; // scenario ids this criterion applies to; undefined/empty = all
   subCriteria: SubCriterion[];
 }
 
@@ -1068,13 +1069,15 @@ export function subScore(rule: RuleType, value: number, th: RuleThresholds): num
   }
 }
 
-// Seed library: 3 criteria (matches the placeholder scenario set).
-export const criteriaLibrary: LibraryCriterion[] = [
+// Hand-authored scoring criteria for Demand Market Access, wired to real data fields
+// (net debt / net assets / memberships / annual volume) with mocked per-counterparty values.
+const CORE_LIBRARY: LibraryCriterion[] = [
   {
     id: "balance-sheet-fit",
     label: "Balance sheet fit",
     description: "Whether the balance sheet supports the deal.",
     blocking: true,
+    scenarios: ["demand-market-access"],
     subCriteria: [
       { id: "net-debt", label: "Net debt", dataField: "netDebt", ruleType: "graded-min", thresholds: { floor: 100, ceiling: 1000 }, weight: 3, direction: "higher", missing: "zero", enabled: true, blocking: true },
       { id: "net-assets", label: "Net assets", dataField: "netAssets", ruleType: "graded-min", thresholds: { floor: 100, ceiling: 800 }, weight: 2, direction: "higher", missing: "zero", enabled: true, blocking: false },
@@ -1085,6 +1088,7 @@ export const criteriaLibrary: LibraryCriterion[] = [
     label: "Market access gap",
     description: "A lack of direct market access is SEE's opportunity.",
     blocking: false,
+    scenarios: ["demand-market-access"],
     subCriteria: [
       { id: "exchange-gap", label: "Exchange access gap", dataField: "memberships", ruleType: "graded-max", thresholds: { floor: 0, ceiling: 4 }, weight: 4, direction: "lower", missing: "zero", enabled: true, blocking: false },
     ],
@@ -1094,10 +1098,60 @@ export const criteriaLibrary: LibraryCriterion[] = [
     label: "Consumption volume",
     description: "Annual gas or power consumption.",
     blocking: false,
+    scenarios: ["demand-market-access"],
     subCriteria: [
       { id: "annual-consumption", label: "Annual volume", dataField: "annualVolume", ruleType: "graded-min", thresholds: { floor: 500, ceiling: 5000 }, weight: 3, direction: "higher", missing: "zero", enabled: true, blocking: false },
     ],
   },
+];
+
+// Generate a library criterion for every other criterion in Michael's scenario set
+// (from scenarios[].spec, so the library stays 1:1 with his sheet). Deduped by key, and a
+// shared criterion is tagged to all the scenarios it appears in. Each gets a starter
+// sub-criterion that maps to a placeholder data field and skips until data is wired, so
+// scoring stays graceful. Rule type follows the inverse flag; thresholds/weights are
+// starter defaults for Michael to tune on the Library screen.
+function buildLibraryFromScenarios(exclude: Set<string>): LibraryCriterion[] {
+  const byKey = new Map<string, LibraryCriterion>();
+  for (const sc of scenarios) {
+    for (const c of sc.spec) {
+      if (exclude.has(c.key)) continue;
+      const found = byKey.get(c.key);
+      if (found) {
+        if (!found.scenarios!.includes(sc.id)) found.scenarios!.push(sc.id);
+        continue;
+      }
+      byKey.set(c.key, {
+        id: c.key,
+        label: c.label,
+        description: c.metric,
+        blocking: false,
+        scenarios: [sc.id],
+        subCriteria: [
+          {
+            id: `${c.key}-signal`,
+            label: c.label,
+            dataField: c.key,
+            ruleType: c.inverse ? "graded-max" : "graded-min",
+            thresholds: { floor: 0, ceiling: 100 },
+            weight: c.optional ? 2 : 3,
+            direction: c.inverse ? "lower" : "higher",
+            missing: "skip",
+            enabled: true,
+            blocking: false,
+          },
+        ],
+      });
+    }
+  }
+  return [...byKey.values()];
+}
+
+// Full library: the wired Demand Market Access criteria plus every other scenario's
+// criteria from Michael's set. Existing sub-criteria are preserved.
+export const criteriaLibrary: LibraryCriterion[] = [
+  ...CORE_LIBRARY,
+  ...buildLibraryFromScenarios(new Set(CORE_LIBRARY.map((c) => c.id))),
 ];
 
 // Effective (library + scenario overrides) shapes used for scoring + the breakdown.
@@ -1145,6 +1199,7 @@ export interface CritBreakdown {
   weight: number;
   score: number;
   blocked: boolean;
+  noData?: boolean; // no scored sub-criteria (all skipped / no data); excluded from fit
   subs: SubBreakdown[];
 }
 export interface ScoreBreakdown {
@@ -1211,11 +1266,15 @@ export function scoreBreakdown(
     }
     let cScore = cDen ? Math.round(cNum / cDen) : 0;
     if (cBlocked) cScore = 0;
-    const critBlocked = cBlocked || (c.blocking && cScore === 0);
+    const noData = cDen === 0 && !cBlocked;
+    const critBlocked = cBlocked || (c.blocking && cScore === 0 && cDen > 0);
     if (critBlocked) dealBlocked = true;
-    critOut.push({ id: c.id, label: c.label, weight: c.weight, score: cScore, blocked: critBlocked, subs });
-    fitNum += cScore * c.weight;
-    fitDen += c.weight;
+    critOut.push({ id: c.id, label: c.label, weight: c.weight, score: cScore, blocked: critBlocked, noData, subs });
+    // No-data criteria (all subs skipped) do not drag the fit down.
+    if (!noData) {
+      fitNum += cScore * c.weight;
+      fitDen += c.weight;
+    }
   }
   return {
     fit: fitDen ? Math.round(fitNum / fitDen) : 0,
