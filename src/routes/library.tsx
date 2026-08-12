@@ -1,11 +1,20 @@
-import { useState, type ReactNode } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Trash2,
+  AlertTriangle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -16,9 +25,10 @@ import {
 } from "@/components/ui/select";
 import {
   DATA_FIELDS,
-  RULE_TYPES,
   dataField,
   subScore,
+  counterpartyFieldValue,
+  type Direction,
   type LibraryCriterion,
   type RuleType,
   type SubCriterion,
@@ -38,6 +48,7 @@ export const Route = createFileRoute("/library")({
   component: Library,
 });
 
+// Sensible display ceilings per field (for the scoring curve axis and defaults).
 const FIELD_MAX: Record<string, number> = {
   netDebt: 1500,
   netAssets: 1200,
@@ -48,161 +59,620 @@ const FIELD_MAX: Record<string, number> = {
   annualVolume: 6000,
 };
 const fieldMax = (key: string) => FIELD_MAX[key] ?? 100;
+const fmt = (n?: number) => (n ?? 0).toLocaleString();
 
-// Inline, low-chrome text field for names (no boxed 1990s look).
-const inlineInput =
-  "h-9 border-transparent bg-transparent px-2 shadow-none hover:bg-muted/50 focus-visible:bg-card";
+// One rule select that names the whole behaviour (rule type + direction together).
+const RULE_OPTIONS: {
+  key: string;
+  label: string;
+  ruleType: RuleType;
+  direction: Direction;
+}[] = [
+  { key: "higher", label: "Higher is better", ruleType: "graded-min", direction: "higher" },
+  { key: "lower", label: "Lower is better (a gap scores higher)", ruleType: "graded-max", direction: "lower" },
+  { key: "gate-min", label: "Pass / fail - at least", ruleType: "gate-min", direction: "higher" },
+  { key: "gate-max", label: "Pass / fail - at most", ruleType: "gate-max", direction: "lower" },
+  { key: "between", label: "In a range", ruleType: "between", direction: "higher" },
+];
+const ruleKeyOf = (s: SubCriterion) =>
+  s.ruleType === "graded-min"
+    ? "higher"
+    : s.ruleType === "graded-max"
+      ? "lower"
+      : s.ruleType === "between"
+        ? "between"
+        : s.ruleType;
+
+const MISSING_OPTS = [
+  { v: "skip", l: "Skip - dropped, weights re-normalise" },
+  { v: "zero", l: "Score 0 - counts as a full miss" },
+  { v: "block", l: "Block - removes the counterparty" },
+];
+
+const THEME_ORDER = [
+  "Financial strength",
+  "Market access",
+  "Volume",
+  "Infrastructure",
+  "Other",
+];
+function themeOf(c: LibraryCriterion): string {
+  const s = `${c.id} ${c.label}`.toLowerCase();
+  if (/balance|debt|asset|credit|margin|collateral|liquid|capital|working|facility|ebitda|financ/.test(s))
+    return "Financial strength";
+  if (/market access|efet|dma|broker|trading|exchange|clearing|permission|allocation|product|reg/.test(s))
+    return "Market access";
+  if (/volume|consumption|throughput|portfolio|auction|swing|flex/.test(s))
+    return "Volume";
+  if (/co-?location|grid|storage|transport|pipeline|infrastructure|ftr|ptr|capacity|site|connection/.test(s))
+    return "Infrastructure";
+  return "Other";
+}
+
+function ruleSummary(s: SubCriterion): string {
+  const fld = dataField(s.dataField);
+  if (!fld) return "No data field - not scoring";
+  const unit = fld.unit ? ` ${fld.unit}` : "";
+  const k = ruleKeyOf(s);
+  if (k === "higher" || k === "lower")
+    return `${fld.label} · ${k === "higher" ? "higher is better" : "lower is better"} · ${fmt(
+      s.thresholds.floor ?? 0,
+    )} → ${fmt(s.thresholds.ceiling ?? 0)}${unit}`;
+  if (k === "gate-min") return `${fld.label} · pass at ${fmt(s.thresholds.t ?? 0)}+${unit}`;
+  if (k === "gate-max") return `${fld.label} · pass at ${fmt(s.thresholds.t ?? 0)}${unit} or less`;
+  return `${fld.label} · in ${fmt(s.thresholds.x ?? 0)} - ${fmt(s.thresholds.y ?? 0)}${unit}`;
+}
+
+type Status = { needsSetup: boolean; inactive: boolean; blocking: boolean; dup: boolean };
+function critStatus(c: LibraryCriterion, usage: Record<string, number>): Status {
+  const valid = c.subCriteria.filter((s) => dataField(s.dataField));
+  const needsSetup = c.subCriteria.length === 0 || valid.length === 0;
+  const inactive = !needsSetup && !valid.some((s) => s.enabled);
+  const dup = c.subCriteria.some((s) => (usage[s.dataField] ?? 0) > 1 && !!dataField(s.dataField));
+  return { needsSetup, inactive, blocking: c.blocking, dup };
+}
 
 function Library() {
   const {
     criteriaLibrary,
+    scenarios,
+    rankedCounterparties,
     addLibraryCriterion,
-    updateLibraryCriterion,
+    duplicateLibraryCriterion,
     deleteLibraryCriterion,
-    addSubCriterion,
     dirty,
     saveAll,
   } = useStore();
 
+  const [selectedId, setSelectedId] = useState<string | null>(
+    criteriaLibrary[0]?.id ?? null,
+  );
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "blocking" | "needs-setup" | "duplicate">("all");
+
+  // Field usage -> duplicate detection; coverage -> share of the universe with a value.
+  const usage = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of criteriaLibrary)
+      for (const s of c.subCriteria) m[s.dataField] = (m[s.dataField] ?? 0) + 1;
+    return m;
+  }, [criteriaLibrary]);
+
+  const coverage = useMemo(() => {
+    const total = rankedCounterparties.length || 1;
+    const m: Record<string, number> = {};
+    for (const f of DATA_FIELDS) {
+      let n = 0;
+      for (const cp of rankedCounterparties)
+        if (counterpartyFieldValue(cp.id, f.key) !== undefined) n++;
+      m[f.key] = Math.round((n / total) * 100);
+    }
+    return m;
+  }, [rankedCounterparties]);
+
+  const totalWeight =
+    criteriaLibrary.reduce((s, c) => s + (c.weight ?? 3), 0) || 1;
+  const critPct = (c: LibraryCriterion) => Math.round(((c.weight ?? 3) / totalWeight) * 100);
+
+  const counts = useMemo(() => {
+    let blocking = 0,
+      needs = 0,
+      dup = 0;
+    for (const c of criteriaLibrary) {
+      const st = critStatus(c, usage);
+      if (st.blocking) blocking++;
+      if (st.needsSetup) needs++;
+      if (st.dup) dup++;
+    }
+    return { blocking, needs, dup };
+  }, [criteriaLibrary, usage]);
+
+  const matches = (c: LibraryCriterion) => {
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      const inName = c.label.toLowerCase().includes(q);
+      const inField = c.subCriteria.some((s) =>
+        (dataField(s.dataField)?.label ?? s.dataField).toLowerCase().includes(q),
+      );
+      if (!inName && !inField) return false;
+    }
+    const st = critStatus(c, usage);
+    if (filter === "blocking") return st.blocking;
+    if (filter === "needs-setup") return st.needsSetup;
+    if (filter === "duplicate") return st.dup;
+    return true;
+  };
+
+  const visible = criteriaLibrary.filter(matches);
+  const grouped = THEME_ORDER.map((t) => ({
+    theme: t,
+    items: visible
+      .filter((c) => themeOf(c) === t)
+      .sort((a, b) => (b.weight ?? 3) - (a.weight ?? 3)),
+  })).filter((g) => g.items.length);
+
+  const selected = criteriaLibrary.find((c) => c.id === selectedId) ?? null;
+
+  const onDelete = (id: string) => {
+    const c = criteriaLibrary.find((x) => x.id === id);
+    if (!c) return;
+    if (!confirm(`Delete "${c.label}"? This changes scoring for every scenario that uses it.`))
+      return;
+    deleteLibraryCriterion(id);
+    if (selectedId === id) setSelectedId(criteriaLibrary.find((x) => x.id !== id)?.id ?? null);
+  };
+  const onDuplicate = (id: string) => {
+    const n = duplicateLibraryCriterion(id);
+    if (n) setSelectedId(n);
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Criteria library
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            The shared definitions. Each sub-criterion holds its scoring logic and
-            default importance. Originators reuse and tune these per scenario.
+            The shared scoring definitions. Pick a criterion on the left to edit its
+            rule and importance. Originators reuse and tune these per scenario.
           </p>
         </div>
-        {dirty ? (
-          <Button onClick={saveAll}>Save all</Button>
-        ) : (
-          <span className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">
-            <Check className="h-3.5 w-3.5" /> All changes saved
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {dirty ? (
+            <Button onClick={saveAll}>Save all</Button>
+          ) : (
+            <span className="flex items-center gap-1.5 rounded-lg bg-success/10 px-3 py-2 text-xs font-medium text-success">
+              <Check className="h-3.5 w-3.5" /> All changes saved
+            </span>
+          )}
+          <Button variant="outline" onClick={() => setSelectedId(addLibraryCriterion())}>
+            <Plus className="mr-1.5 h-4 w-4" /> Add criterion
+          </Button>
+        </div>
       </div>
 
-      {criteriaLibrary.map((crit) => (
-        <Card key={crit.id} className="overflow-hidden p-0">
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <Input
-              value={crit.label}
-              className={`${inlineInput} max-w-xs text-base font-semibold`}
-              onChange={(e) =>
-                updateLibraryCriterion(crit.id, { label: e.target.value })
-              }
-            />
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Switch
-                checked={crit.blocking}
-                onCheckedChange={(v) =>
-                  updateLibraryCriterion(crit.id, { blocking: v })
-                }
-              />
-              Blocking
-            </label>
-            <div className="ml-auto flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">
-                {crit.subCriteria.length} sub-criteria
-              </span>
-              <button
-                type="button"
-                onClick={() => deleteLibraryCriterion(crit.id)}
-                className="text-muted-foreground transition-colors hover:text-destructive"
-                aria-label="Delete criterion"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="px-4 pb-3">
-            <Input
-              value={crit.description ?? ""}
-              placeholder="What this criterion measures"
-              className={`${inlineInput} w-full text-sm text-muted-foreground`}
-              onChange={(e) =>
-                updateLibraryCriterion(crit.id, { description: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="space-y-3 border-t border-border bg-muted/20 p-4">
-            {crit.subCriteria.map((sub) => (
-              <SubEditor key={sub.id} crit={crit} sub={sub} />
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => addSubCriterion(crit.id)}
+      {counts.needs > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <AlertTriangle className="mt-0.5 h-4 w-4 text-warning" />
+          <span className="text-foreground">
+            {counts.needs} criteria need setup (no data field). They are excluded from
+            scoring until a field is chosen.{" "}
+            <button
+              className="font-medium text-brand-blue hover:underline"
+              onClick={() => setFilter("needs-setup")}
             >
-              <Plus className="mr-1.5 h-4 w-4" /> Add sub-criterion
-            </Button>
-          </div>
-        </Card>
-      ))}
+              Show them
+            </button>
+          </span>
+        </div>
+      )}
 
-      <Button variant="outline" onClick={() => addLibraryCriterion()}>
-        <Plus className="mr-2 h-4 w-4" /> Add criterion
-      </Button>
+      <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
+        {/* LEFT: persistent index */}
+        <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search criteria or data fields"
+              className="pl-8"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            <Chip active={filter === "all"} onClick={() => setFilter("all")}>
+              All {criteriaLibrary.length}
+            </Chip>
+            <Chip active={filter === "blocking"} onClick={() => setFilter("blocking")}>
+              Blocking {counts.blocking}
+            </Chip>
+            <Chip active={filter === "needs-setup"} onClick={() => setFilter("needs-setup")}>
+              Needs setup {counts.needs}
+            </Chip>
+            {counts.dup > 0 && (
+              <Chip active={filter === "duplicate"} onClick={() => setFilter("duplicate")}>
+                Duplicate field {counts.dup}
+              </Chip>
+            )}
+          </div>
+
+          <WeightBar criteria={criteriaLibrary} total={totalWeight} onPick={setSelectedId} />
+
+          <div className="max-h-[calc(100vh-18rem)] space-y-4 overflow-auto pr-1">
+            {grouped.map((g) => (
+              <div key={g.theme}>
+                <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {g.theme}
+                </div>
+                <div className="space-y-1">
+                  {g.items.map((c) => (
+                    <CriterionRow
+                      key={c.id}
+                      crit={c}
+                      pct={critPct(c)}
+                      status={critStatus(c, usage)}
+                      active={c.id === selectedId}
+                      onClick={() => setSelectedId(c.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {!grouped.length && (
+              <p className="px-1 py-6 text-center text-sm text-muted-foreground">
+                Nothing matches.
+              </p>
+            )}
+          </div>
+        </aside>
+
+        {/* RIGHT: single editor */}
+        <section>
+          {selected ? (
+            <CriterionEditor
+              key={selected.id}
+              crit={selected}
+              pct={critPct(selected)}
+              total={totalWeight}
+              usage={usage}
+              coverage={coverage}
+              scenarios={scenarios}
+              onDelete={() => onDelete(selected.id)}
+              onDuplicate={() => onDuplicate(selected.id)}
+            />
+          ) : (
+            <Card className="p-10 text-center text-sm text-muted-foreground">
+              Select a criterion to edit, or add one.
+            </Card>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
 
-function SubEditor({
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+        active
+          ? "border-foreground bg-foreground text-background"
+          : "border-border bg-card text-muted-foreground hover:bg-muted/60"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+const THEME_COLORS: Record<string, string> = {
+  "Financial strength": "#0091D4",
+  "Market access": "#00A98A",
+  Volume: "#7C83FF",
+  Infrastructure: "#E4A11B",
+  Other: "#98A2B3",
+};
+
+function WeightBar({
+  criteria,
+  total,
+  onPick,
+}: {
+  criteria: LibraryCriterion[];
+  total: number;
+  onPick: (id: string) => void;
+}) {
+  const sorted = [...criteria].sort((a, b) => (b.weight ?? 3) - (a.weight ?? 3));
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between px-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Weight distribution
+        </span>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full">
+        {sorted.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => onPick(c.id)}
+            title={`${c.label} · ${Math.round(((c.weight ?? 3) / total) * 100)}%`}
+            className="h-full transition-opacity hover:opacity-80"
+            style={{
+              width: `${((c.weight ?? 3) / total) * 100}%`,
+              background: THEME_COLORS[themeOf(c)],
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ kind }: { kind: "blocking" | "needs-setup" | "inactive" | "duplicate" | "active" }) {
+  const map = {
+    blocking: ["Blocking", "bg-destructive/10 text-destructive"],
+    "needs-setup": ["Needs setup", "bg-warning/15 text-warning"],
+    inactive: ["Inactive", "bg-muted text-muted-foreground"],
+    duplicate: ["Duplicate field", "bg-warning/15 text-warning"],
+    active: ["Active", "bg-success/10 text-success"],
+  } as const;
+  const [label, cls] = map[kind];
+  return (
+    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
+function rowBadges(st: Status) {
+  const out: ("blocking" | "needs-setup" | "inactive" | "duplicate" | "active")[] = [];
+  if (st.blocking) out.push("blocking");
+  if (st.needsSetup) out.push("needs-setup");
+  else if (st.inactive) out.push("inactive");
+  else if (!st.blocking) out.push("active");
+  if (st.dup) out.push("duplicate");
+  return out;
+}
+
+function CriterionRow({
+  crit,
+  pct,
+  status,
+  active,
+  onClick,
+}: {
+  crit: LibraryCriterion;
+  pct: number;
+  status: Status;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const summary =
+    crit.subCriteria.length === 0
+      ? "No rule yet"
+      : crit.subCriteria.length === 1
+        ? ruleSummary(crit.subCriteria[0])
+        : `${crit.subCriteria.length} rules`;
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+        active
+          ? "border-brand-blue bg-brand-blue/5"
+          : "border-transparent hover:border-border hover:bg-muted/40"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        <span className="truncate text-sm font-medium text-foreground">{crit.label}</span>
+        <span className="ml-auto shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+          {pct}%
+        </span>
+      </div>
+      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{summary}</div>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {rowBadges(status).map((k) => (
+          <StatusBadge key={k} kind={k} />
+        ))}
+      </div>
+    </button>
+  );
+}
+
+function CriterionEditor({
+  crit,
+  pct,
+  total,
+  usage,
+  coverage,
+  scenarios,
+  onDelete,
+  onDuplicate,
+}: {
+  crit: LibraryCriterion;
+  pct: number;
+  total: number;
+  usage: Record<string, number>;
+  coverage: Record<string, number>;
+  scenarios: { id: string; title: string }[];
+  onDelete: () => void;
+  onDuplicate: () => void;
+}) {
+  const { updateLibraryCriterion, addSubCriterion } = useStore();
+  const st = critStatus(crit, usage);
+  const usedIn =
+    crit.scenarios && crit.scenarios.length
+      ? scenarios.filter((s) => crit.scenarios!.includes(s.id))
+      : scenarios;
+  const single = crit.subCriteria.length === 1;
+
+  return (
+    <Card className="space-y-5 p-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <Input
+            value={crit.label}
+            onChange={(e) => updateLibraryCriterion(crit.id, { label: e.target.value })}
+            className="h-auto border-transparent bg-transparent px-0 text-lg font-semibold shadow-none hover:bg-muted/40 focus-visible:bg-card focus-visible:px-2"
+          />
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            {rowBadges(st).map((k) => (
+              <StatusBadge key={k} kind={k} />
+            ))}
+            <Link
+              to="/scenarios"
+              className="inline-flex items-center gap-1 text-xs text-brand-blue hover:underline"
+            >
+              Used in {usedIn.length} scenario{usedIn.length === 1 ? "" : "s"}
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+        <OverflowMenu onDuplicate={onDuplicate} onDelete={onDelete} />
+      </div>
+
+      <Input
+        value={crit.description ?? ""}
+        placeholder="What this criterion measures"
+        onChange={(e) => updateLibraryCriterion(crit.id, { description: e.target.value })}
+        className="text-sm text-muted-foreground"
+      />
+
+      {/* Importance + blocking, side by side */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-lg border border-border p-3">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">Importance</span>
+            <span className="text-sm font-semibold tabular-nums text-brand-blue">
+              {pct}% of total
+            </span>
+          </div>
+          <Stepper
+            value={crit.weight ?? 3}
+            min={1}
+            max={5}
+            onChange={(v) => updateLibraryCriterion(crit.id, { weight: v })}
+          />
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Share of the final score across {total} weight points in the library.
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-border p-3">
+          <label className="flex items-start gap-2">
+            <Switch
+              checked={crit.blocking}
+              onCheckedChange={(v) => updateLibraryCriterion(crit.id, { blocking: v })}
+            />
+            <span>
+              <span className="text-xs font-medium text-foreground">Blocking criterion</span>
+              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                A counterparty scoring 0 here is removed from the shortlist entirely.
+              </span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      {/* Sub-criteria */}
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {single ? "Rule" : `Sub-criteria · ${crit.subCriteria.length}`}
+          </span>
+          <Button variant="outline" size="sm" onClick={() => addSubCriterion(crit.id)}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> Add sub-criterion
+          </Button>
+        </div>
+
+        {crit.subCriteria.length === 0 && (
+          <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+            No rule yet. Add a sub-criterion to define how this is scored.
+          </p>
+        )}
+
+        <div className="space-y-2">
+          {crit.subCriteria.map((sub) => (
+            <SubRuleEditor
+              key={sub.id}
+              crit={crit}
+              sub={sub}
+              single={single}
+              usage={usage}
+              coverage={coverage}
+              subWeightTotal={crit.subCriteria.reduce((s, x) => s + x.weight, 0) || 1}
+            />
+          ))}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function SubRuleEditor({
   crit,
   sub,
+  single,
+  usage,
+  coverage,
+  subWeightTotal,
 }: {
   crit: LibraryCriterion;
   sub: SubCriterion;
+  single: boolean;
+  usage: Record<string, number>;
+  coverage: Record<string, number>;
+  subWeightTotal: number;
 }) {
   const { updateSubCriterion, deleteSubCriterion } = useStore();
-  const fmax = fieldMax(sub.dataField);
-  const [preview, setPreview] = useState<number>(
-    sub.thresholds.ceiling ?? sub.thresholds.t ?? Math.round(fmax / 3),
-  );
+  const [open, setOpen] = useState(single);
   const fld = dataField(sub.dataField);
+  const fmax = fieldMax(sub.dataField);
+  const dup = (usage[sub.dataField] ?? 0) > 1 && !!fld;
+  const ruleKey = ruleKeyOf(sub);
+  const graded = ruleKey === "higher" || ruleKey === "lower";
+  const gate = ruleKey === "gate-min" || ruleKey === "gate-max";
+  const between = ruleKey === "between";
+  const subPct = Math.round((sub.weight / subWeightTotal) * 100);
 
   const patch = (p: Partial<Omit<SubCriterion, "id">>) =>
     updateSubCriterion(crit.id, sub.id, p);
   const setTh = (p: Partial<SubCriterion["thresholds"]>) =>
     patch({ thresholds: { ...sub.thresholds, ...p } });
 
-  const pct = (v: number) => Math.max(0, Math.min(100, (v / fmax) * 100));
-  const ps = subScore(sub.ruleType, preview, sub.thresholds);
-  const graded = sub.ruleType === "graded-min" || sub.ruleType === "graded-max";
-  const gate = sub.ruleType === "gate-min" || sub.ruleType === "gate-max";
-  const between = sub.ruleType === "between";
-  const lo = Math.min(sub.thresholds.floor ?? 0, sub.thresholds.ceiling ?? 0);
-  const hi = Math.max(sub.thresholds.floor ?? 0, sub.thresholds.ceiling ?? 0);
+  const onRule = (key: string) => {
+    const o = RULE_OPTIONS.find((x) => x.key === key);
+    if (!o) return;
+    const t = { ...sub.thresholds };
+    if ((o.ruleType === "graded-min" || o.ruleType === "graded-max") && t.floor === undefined && t.ceiling === undefined) {
+      t.floor = 0;
+      t.ceiling = fmax;
+    }
+    if ((o.ruleType === "gate-min" || o.ruleType === "gate-max") && t.t === undefined) t.t = Math.round(fmax / 2);
+    if (o.ruleType === "between" && t.x === undefined && t.y === undefined) {
+      t.x = Math.round(fmax / 4);
+      t.y = Math.round((fmax * 3) / 4);
+    }
+    patch({ ruleType: o.ruleType, direction: o.direction, thresholds: t });
+  };
 
-  return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="mb-4 flex items-center gap-2">
-        <Input
-          value={sub.label}
-          className={`${inlineInput} max-w-xs text-sm font-semibold`}
-          onChange={(e) => patch({ label: e.target.value })}
-        />
-        <span className="ml-auto rounded-full bg-brand-blue/10 px-2.5 py-1 text-xs font-medium text-brand-blue">
-          sub-score {ps}
-        </span>
-        <button
-          type="button"
-          onClick={() => deleteSubCriterion(crit.id, sub.id)}
-          className="text-muted-foreground transition-colors hover:text-destructive"
-          aria-label="Delete sub-criterion"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
-
-      {/* Data + rule side by side, constrained width */}
+  // Single-sub criteria render inline (no wrapper chrome, no duplicate title).
+  const body = (
+    <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Data field" hint={`${fld?.unit ?? ""} · ${fld?.source ?? ""}`}>
+        <div>
+          <FieldLabel>Data field</FieldLabel>
           <Select value={sub.dataField} onValueChange={(v) => patch({ dataField: v })}>
             <SelectTrigger>
               <SelectValue />
@@ -215,245 +685,306 @@ function SubEditor({
               ))}
             </SelectContent>
           </Select>
-        </Field>
-        <Field label="Scoring rule">
-          <Select
-            value={sub.ruleType}
-            onValueChange={(v) => patch({ ruleType: v as RuleType })}
-          >
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            {fld ? (
+              <>
+                {fld.unit ? `${fld.unit} · ` : ""}
+                {fld.source} · data for {coverage[sub.dataField] ?? 0}% of counterparties
+              </>
+            ) : (
+              <span className="text-warning">No live data field - not scoring.</span>
+            )}
+            {dup && (
+              <span className="text-warning"> · also used by another criterion</span>
+            )}
+          </p>
+        </div>
+        <div>
+          <FieldLabel>Rule</FieldLabel>
+          <Select value={ruleKey} onValueChange={onRule}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {RULE_TYPES.map((r) => (
-                <SelectItem key={r.value} value={r.value}>
-                  {r.label}
+              {RULE_OPTIONS.map((o) => (
+                <SelectItem key={o.key} value={o.key}>
+                  {o.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </Field>
+        </div>
       </div>
 
-      {/* Scoring band */}
-      <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
-        <div className="relative h-10 overflow-hidden rounded-md border border-border bg-card">
-          {graded && (
-            <div
-              className="absolute inset-y-0 bg-brand-blue/15"
-              style={{ left: `${pct(lo)}%`, width: `${pct(hi) - pct(lo)}%` }}
-            />
-          )}
-          {gate && (
-            <div
-              className="absolute inset-y-0 w-0.5 bg-warning"
-              style={{ left: `${pct(sub.thresholds.t ?? 0)}%` }}
-            />
-          )}
-          <div
-            className="absolute inset-y-0 w-0.5 bg-foreground"
-            style={{ left: `${pct(preview)}%` }}
-          />
-          <span
-            className="absolute top-1 -translate-x-1/2 text-[11px] font-medium text-foreground"
-            style={{ left: `${pct(preview)}%` }}
-          >
-            {preview}
-          </span>
-          <span className="absolute bottom-1 left-2 text-[11px] text-muted-foreground">
-            0
-          </span>
-          <span className="absolute bottom-1 right-2 text-[11px] text-muted-foreground">
-            100 score
-          </span>
-        </div>
-
+      {/* Typed thresholds */}
+      <div className="grid gap-4 sm:grid-cols-2">
         {graded && (
-          <div className="mt-3 grid grid-cols-2 gap-4">
-            <ThSlider
-              label="Score 0 at or below"
+          <>
+            <NumberField
+              label="Scores 0 at or below"
+              unit={fld?.unit}
               value={sub.thresholds.floor ?? 0}
-              max={fmax}
               onChange={(v) => setTh({ floor: v })}
             />
-            <ThSlider
-              label="Score 100 at or above"
+            <NumberField
+              label="Scores 100 at or above"
+              unit={fld?.unit}
               value={sub.thresholds.ceiling ?? fmax}
-              max={fmax}
               onChange={(v) => setTh({ ceiling: v })}
             />
-          </div>
+          </>
         )}
         {gate && (
-          <div className="mt-3 max-w-xs">
-            <ThSlider
-              label="Threshold"
-              value={sub.thresholds.t ?? 0}
-              max={fmax}
-              onChange={(v) => setTh({ t: v })}
-            />
-          </div>
+          <NumberField
+            label="Pass threshold"
+            unit={fld?.unit}
+            value={sub.thresholds.t ?? 0}
+            onChange={(v) => setTh({ t: v })}
+          />
         )}
         {between && (
-          <div className="mt-3 grid grid-cols-2 gap-4">
-            <ThSlider
+          <>
+            <NumberField
               label="Low"
+              unit={fld?.unit}
               value={sub.thresholds.x ?? 0}
-              max={fmax}
               onChange={(v) => setTh({ x: v })}
             />
-            <ThSlider
+            <NumberField
               label="High"
+              unit={fld?.unit}
               value={sub.thresholds.y ?? fmax}
-              max={fmax}
               onChange={(v) => setTh({ y: v })}
             />
-          </div>
+          </>
         )}
+      </div>
 
-        <div className="mt-3 flex items-center gap-3 border-t border-border pt-3">
-          <span className="text-xs text-muted-foreground">Preview a value</span>
-          <Slider
-            className="flex-1"
-            min={0}
-            max={fmax}
-            step={Math.max(1, Math.round(fmax / 100))}
-            value={[preview]}
-            onValueChange={(v) => setPreview(v[0])}
-          />
-          <span className="w-24 text-right text-sm font-medium">
-            {preview} → {ps}
+      {/* Scoring curve = the preview */}
+      <div className="rounded-lg border border-border bg-muted/20 p-3">
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-[11px] font-medium text-muted-foreground">
+            Score curve
           </span>
         </div>
+        <Curve sub={sub} />
       </div>
 
-      {/* Importance + safeguards in one compact row */}
-      <div className="mt-4 grid gap-4 sm:grid-cols-4">
-        <Field label="Importance">
-          <div className="flex items-center gap-3">
-            <Slider
-              className="flex-1"
-              min={1}
-              max={5}
-              step={1}
-              value={[sub.weight]}
-              onValueChange={(v) => patch({ weight: v[0] })}
-            />
-            <span className="w-4 text-sm font-medium">{sub.weight}</span>
+      {/* Importance (within criterion) + missing */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <FieldLabel>Importance in this criterion</FieldLabel>
+            {!single && (
+              <span className="text-xs font-semibold tabular-nums text-brand-blue">
+                {subPct}%
+              </span>
+            )}
           </div>
-        </Field>
-        <Field label="Direction">
-          <MiniSelect
-            value={sub.direction}
-            onChange={(v) => patch({ direction: v as SubCriterion["direction"] })}
-            options={[
-              { v: "higher", l: "higher is better" },
-              { v: "lower", l: "a gap scores higher" },
-            ]}
-          />
-        </Field>
-        <Field label="If missing">
-          <MiniSelect
-            value={sub.missing}
-            onChange={(v) => patch({ missing: v as SubCriterion["missing"] })}
-            options={[
-              { v: "zero", l: "score 0" },
-              { v: "skip", l: "skip" },
-              { v: "block", l: "block" },
-            ]}
-          />
-        </Field>
-        <Field label="Blocking">
-          <MiniSelect
-            value={sub.blocking ? "yes" : "no"}
-            onChange={(v) => patch({ blocking: v === "yes" })}
-            options={[
-              { v: "no", l: "never" },
-              { v: "yes", l: "block if 0" },
-            ]}
-          />
-        </Field>
+          <Stepper value={sub.weight} min={1} max={5} onChange={(v) => patch({ weight: v })} />
+        </div>
+        <div>
+          <FieldLabel>When data is missing</FieldLabel>
+          <Select value={sub.missing} onValueChange={(v) => patch({ missing: v as SubCriterion["missing"] })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MISSING_OPTS.map((o) => (
+                <SelectItem key={o.v} value={o.v}>
+                  {o.l}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+    </div>
+  );
+
+  if (single) return <div>{body}</div>;
+
+  return (
+    <div className="rounded-lg border border-border">
+      <div className="flex items-center gap-2 px-3 py-2">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="text-muted-foreground hover:text-foreground"
+          aria-label={open ? "Collapse" : "Expand"}
+        >
+          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </button>
+        <Input
+          value={sub.label}
+          onChange={(e) => patch({ label: e.target.value })}
+          className="h-8 max-w-xs border-transparent bg-transparent px-1 text-sm font-medium shadow-none hover:bg-muted/40 focus-visible:bg-card"
+        />
+        <span className="ml-auto truncate text-[11px] text-muted-foreground">
+          {ruleSummary(sub)}
+        </span>
+        <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
+          {subPct}%
+        </span>
+        <button
+          onClick={() => deleteSubCriterion(crit.id, sub.id)}
+          className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
+          aria-label="Delete sub-criterion"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+      {open && <div className="border-t border-border p-3">{body}</div>}
     </div>
   );
 }
 
-function Field({
-  label,
-  hint,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-}) {
+function Curve({ sub }: { sub: SubCriterion }) {
+  const fmax = fieldMax(sub.dataField);
+  const W = 320;
+  const H = 72;
+  const pad = 6;
+  const [hx, setHx] = useState<number | null>(null);
+  const N = 60;
+  const pts: [number, number][] = [];
+  for (let i = 0; i <= N; i++) {
+    const v = (i / N) * fmax;
+    const sc = subScore(sub.ruleType, v, sub.thresholds);
+    pts.push([pad + (i / N) * (W - 2 * pad), H - pad - (sc / 100) * (H - 2 * pad)]);
+  }
+  const path = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
+  const hv = hx != null ? ((hx - pad) / (W - 2 * pad)) * fmax : null;
+  const hs = hv != null ? subScore(sub.ruleType, hv, sub.thresholds) : null;
+  const hxy = hv != null ? pad + (hv / fmax) * (W - 2 * pad) : null;
+  const hyy = hs != null ? H - pad - (hs / 100) * (H - 2 * pad) : null;
+
   return (
     <div>
-      <div className="mb-1 flex items-baseline justify-between gap-2">
-        <Label className="text-xs text-muted-foreground">{label}</Label>
-        {hint && hint.trim() !== "·" && (
-          <span className="truncate text-[11px] text-muted-foreground/70">
-            {hint}
-          </span>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const x = ((e.clientX - r.left) / r.width) * W;
+          setHx(Math.max(pad, Math.min(W - pad, x)));
+        }}
+        onMouseLeave={() => setHx(null)}
+      >
+        <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="currentColor" className="text-border" />
+        <line x1={pad} y1={pad} x2={pad} y2={H - pad} stroke="currentColor" className="text-border" />
+        <path d={path} fill="none" stroke="currentColor" strokeWidth={2} className="text-brand-blue" />
+        {hxy != null && hyy != null && (
+          <>
+            <line x1={hxy} y1={pad} x2={hxy} y2={H - pad} stroke="currentColor" className="text-muted-foreground/50" strokeDasharray="3 3" />
+            <circle cx={hxy} cy={hyy} r={3} className="fill-brand-blue" />
+          </>
         )}
+      </svg>
+      <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+        <span>0</span>
+        <span className="font-medium text-foreground">
+          {hv != null ? `${fmt(Math.round(hv))} → score ${hs}` : "Hover the curve to read value → score"}
+        </span>
+        <span>{fmt(fmax)}</span>
       </div>
-      {children}
     </div>
   );
 }
 
-function ThSlider({
+function FieldLabel({ children }: { children: ReactNode }) {
+  return <div className="mb-1 text-xs font-medium text-foreground">{children}</div>;
+}
+
+function NumberField({
   label,
+  unit,
   value,
-  max,
   onChange,
 }: {
   label: string;
+  unit?: string;
   value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          value={Number.isFinite(value) ? value : 0}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="tabular-nums"
+        />
+        {unit && <span className="shrink-0 text-xs text-muted-foreground">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+function Stepper({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: number;
+  min: number;
   max: number;
   onChange: (v: number) => void;
 }) {
   return (
-    <label className="text-xs text-muted-foreground">
-      {label}
-      <span className="mt-1.5 flex items-center gap-2">
-        <Slider
-          className="flex-1"
-          min={0}
-          max={max}
-          step={Math.max(1, Math.round(max / 100))}
-          value={[value]}
-          onValueChange={(v) => onChange(v[0])}
-        />
-        <span className="w-14 text-right text-sm font-medium text-foreground">
-          {value}
-        </span>
-      </span>
-    </label>
+    <div className="flex items-center gap-1">
+      {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((n) => (
+        <button
+          key={n}
+          onClick={() => onChange(n)}
+          className={`h-8 flex-1 rounded-md border text-sm font-medium tabular-nums transition-colors ${
+            n <= value
+              ? "border-brand-blue bg-brand-blue/10 text-brand-blue"
+              : "border-border text-muted-foreground hover:bg-muted/50"
+          }`}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
   );
 }
 
-function MiniSelect({
-  value,
-  onChange,
-  options,
+function OverflowMenu({
+  onDuplicate,
+  onDelete,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { v: string; l: string }[];
+  onDuplicate: () => void;
+  onDelete: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.v} value={o.v}>
-            {o.l}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="rounded-md border border-border p-2 text-muted-foreground hover:bg-muted/50"
+        aria-label="More actions"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-md border border-border bg-card shadow-md">
+          <button
+            onMouseDown={onDuplicate}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/60"
+          >
+            <Copy className="h-4 w-4" /> Duplicate as template
+          </button>
+          <button
+            onMouseDown={onDelete}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-4 w-4" /> Delete
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

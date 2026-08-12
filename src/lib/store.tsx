@@ -142,6 +142,7 @@ interface StoreValue {
     patch: Partial<Omit<LibraryCriterion, "id" | "subCriteria">>,
   ) => void;
   deleteLibraryCriterion: (id: string) => void;
+  duplicateLibraryCriterion: (id: string) => string | undefined;
   addSubCriterion: (critId: string) => void;
   updateSubCriterion: (
     critId: string,
@@ -510,7 +511,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const id = uid("crit");
     setCriteriaLibraryList((l) => [
       ...l,
-      { id, label: "New criterion", description: "", blocking: false, subCriteria: [] },
+      { id, label: "New criterion", description: "", blocking: false, weight: 3, subCriteria: [] },
     ]);
     return id;
   };
@@ -523,6 +524,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     );
   const deleteLibraryCriterion = (id: string) =>
     setCriteriaLibraryList((l) => l.filter((c) => c.id !== id));
+  const duplicateLibraryCriterion = (id: string) => {
+    let newId: string | undefined;
+    setCriteriaLibraryList((l) => {
+      const idx = l.findIndex((c) => c.id === id);
+      if (idx < 0) return l;
+      const src = l[idx];
+      newId = uid("crit");
+      const copy: LibraryCriterion = {
+        ...src,
+        id: newId,
+        label: `${src.label} (copy)`,
+        subCriteria: src.subCriteria.map((s) => ({ ...s, id: uid("sub") })),
+      };
+      return [...l.slice(0, idx + 1), copy, ...l.slice(idx + 1)];
+    });
+    return newId;
+  };
   const addSubCriterion = (critId: string) =>
     setCriteriaLibraryList((l) =>
       l.map((c) =>
@@ -647,7 +665,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         label: c.label,
         description: c.description,
         blocking: c.blocking,
-        weight: ov?.weight ?? 3,
+        weight: ov?.weight ?? c.weight ?? 3,
         enabled: ov?.enabled ?? true,
         subCriteria: c.subCriteria.map((s) => {
           const so = ov?.subOverrides?.[s.id];
@@ -988,6 +1006,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addLibraryCriterion,
     updateLibraryCriterion,
     deleteLibraryCriterion,
+    duplicateLibraryCriterion,
     addSubCriterion,
     updateSubCriterion,
     deleteSubCriterion,

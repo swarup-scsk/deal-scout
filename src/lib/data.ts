@@ -1042,6 +1042,7 @@ export interface LibraryCriterion {
   label: string;
   description?: string;
   blocking: boolean;
+  weight?: number; // criterion-level default importance (1-5); scenario overrides can replace it
   scenarios?: string[]; // scenario ids this criterion applies to; undefined/empty = all
   subCriteria: SubCriterion[];
 }
@@ -1291,6 +1292,7 @@ const CORE_LIBRARY: LibraryCriterion[] = [
     label: "Balance sheet fit",
     description: "Whether the balance sheet supports the deal.",
     blocking: true,
+    weight: 3,
     scenarios: ["demand-market-access"],
     subCriteria: [
       { id: "net-debt", label: "Net debt", dataField: "netDebt", ruleType: "graded-min", thresholds: { floor: 100, ceiling: 1000 }, weight: 3, direction: "higher", missing: "zero", enabled: true, blocking: true },
@@ -1302,6 +1304,7 @@ const CORE_LIBRARY: LibraryCriterion[] = [
     label: "Market access gap",
     description: "A lack of direct market access is SEE's opportunity.",
     blocking: false,
+    weight: 4,
     scenarios: ["demand-market-access"],
     subCriteria: [
       { id: "exchange-gap", label: "Exchange access gap", dataField: "memberships", ruleType: "graded-max", thresholds: { floor: 0, ceiling: 4 }, weight: 4, direction: "lower", missing: "zero", enabled: true, blocking: false },
@@ -1312,6 +1315,7 @@ const CORE_LIBRARY: LibraryCriterion[] = [
     label: "Consumption volume",
     description: "Annual gas or power consumption.",
     blocking: false,
+    weight: 3,
     scenarios: ["demand-market-access"],
     subCriteria: [
       { id: "annual-consumption", label: "Annual volume", dataField: "annualVolume", ruleType: "graded-min", thresholds: { floor: 500, ceiling: 5000 }, weight: 3, direction: "higher", missing: "zero", enabled: true, blocking: false },
@@ -1326,6 +1330,7 @@ const CORE_LIBRARY: LibraryCriterion[] = [
     label: "EFET signatory without access",
     description: "On the EFET / trader list but lacking direct exchange or clearing membership is SEE's opportunity.",
     blocking: false,
+    weight: 4,
     scenarios: ["trading-market-access"],
     subCriteria: [
       { id: "efet-access-gap", label: "Exchange / clearing access gap", dataField: "memberships", ruleType: "graded-max", thresholds: { floor: 0, ceiling: 4 }, weight: 4, direction: "lower", missing: "skip", enabled: true, blocking: false },
@@ -1336,6 +1341,7 @@ const CORE_LIBRARY: LibraryCriterion[] = [
     label: "Trading activity level",
     description: "Estimated annual traded volume (proxy: annual volume).",
     blocking: false,
+    weight: 3,
     scenarios: ["trading-market-access"],
     subCriteria: [
       { id: "traded-volume", label: "Traded volume", dataField: "annualVolume", ruleType: "graded-min", thresholds: { floor: 500, ceiling: 5000 }, weight: 3, direction: "higher", missing: "skip", enabled: true, blocking: false },
@@ -1346,6 +1352,7 @@ const CORE_LIBRARY: LibraryCriterion[] = [
     label: "Margining / collateral capacity",
     description: "Available cash or net assets as a proxy for margin capacity.",
     blocking: false,
+    weight: 2,
     scenarios: ["trading-market-access", "transport-capacity"],
     subCriteria: [
       { id: "margin-net-assets", label: "Net assets proxy", dataField: "netAssets", ruleType: "graded-min", thresholds: { floor: 100, ceiling: 800 }, weight: 2, direction: "higher", missing: "skip", enabled: true, blocking: false },
@@ -1374,6 +1381,7 @@ function buildLibraryFromScenarios(exclude: Set<string>): LibraryCriterion[] {
         label: c.label,
         description: c.metric,
         blocking: false,
+        weight: c.optional ? 2 : 3,
         scenarios: [sc.id],
         subCriteria: [
           {

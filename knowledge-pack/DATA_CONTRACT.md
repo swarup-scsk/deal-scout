@@ -139,7 +139,8 @@ CompaniesHouseFinancials{ fiscalYear, revenue, revenueGrowth?, adjEbitda?, profi
 DataField      { key, label, unit?, source }                       // DATA_FIELDS catalogue (constant, not persisted)
 RuleType       = "graded-min"|"graded-max"|"gate-min"|"gate-max"|"between"|"boolean"
 SubCriterion   { id, label, dataField, ruleType, thresholds{floor?,ceiling?,t?,x?,y?}, weight, direction, missing, enabled, blocking }
-LibraryCriterion { id, label, description?, blocking, scenarios?, subCriteria: SubCriterion[] }   // persisted as criteriaLibrary; scenarios = ids this criterion applies to (undefined/empty = all)
+LibraryCriterion { id, label, description?, blocking, weight?, scenarios?, subCriteria: SubCriterion[] }   // persisted as criteriaLibrary; weight = criterion-level default importance (1-5), used by resolveScenario as ov?.weight ?? c.weight ?? 3; scenarios = ids this criterion applies to (undefined/empty = all)
+// Store: duplicateLibraryCriterion(id) clones a criterion (new ids for it and its subs) and inserts it after the original.
 // The library now covers Michael's full scenario/criteria set: the wired Demand Market Access
 // criteria (real data fields) plus every other scenario's criteria generated from scenarios[].spec
 // (deduped by key, tagged per scenario, inverse -> graded-max, optional -> lower weight, missing: "skip").
