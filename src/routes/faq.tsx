@@ -75,6 +75,16 @@ const CONFIG = [
   { t: "Scenarios", s: "compose + tune per deal" },
 ];
 
+// The scoring concept, from raw source to your decision.
+const MODEL = [
+  { t: "Sources", s: "trusted registers + feeds" },
+  { t: "Data fields", s: "one sourced value each" },
+  { t: "Rules", s: "value becomes 0-100" },
+  { t: "Scenario", s: "rules weighted per deal" },
+  { t: "Fit + quality", s: "ranked, with confidence" },
+  { t: "Your decision", s: "proceed, hold, decline" },
+];
+
 const TIERS = [
   {
     tier: "Tier 1",
@@ -133,6 +143,10 @@ const FAQS = [
   {
     q: "How is a counterparty scored?",
     a: "Each scenario uses a small set of criteria, and each criterion has one or more checks (sub-criteria). A check reads one data field, compares it against a rule you set (for example, more is better between two thresholds), and produces a 0 to 100 score. Checks roll up by importance into a criterion score, and criteria roll up by weight into the overall fit. Some checks can act as a go / no-go that blocks a counterparty.",
+  },
+  {
+    q: "What is a data field, and can we add new ones?",
+    a: "A data field is one sourced fact about a counterparty, for example net debt, exchange memberships, or annual volume. Each rule in the Library reads exactly one field. Fields live in a catalogue on the Sources screen, where an administrator can add, rename or retire them, set the unit and type, and map each field to the source it comes from per region. New fields then appear automatically in the Library's field picker. An originator selects a field for a rule but does not create it, so a field is always tied to a source before anything is scored on it.",
   },
   {
     q: "Can I see why a counterparty got its score?",
@@ -202,6 +216,49 @@ function Faq() {
           behind the scenes.
         </p>
         <StepStrip steps={CONFIG} />
+      </Card>
+
+      <Card className="p-4">
+        <div className="mb-1 text-sm font-medium text-foreground">
+          The whole idea, for a new originator
+        </div>
+        <p className="mb-3 text-[11px] text-muted-foreground">
+          How a raw fact becomes a score you can act on, and where you fit in.
+        </p>
+        <StepStrip steps={MODEL} />
+        <div className="mt-4 space-y-2.5 text-sm leading-relaxed text-muted-foreground">
+          <p>
+            A <span className="font-medium text-foreground">data field</span> is a
+            single sourced fact about a counterparty, such as net debt or exchange
+            memberships. Fields are defined once on the Sources screen and mapped to
+            the register they come from, so every value is traceable.
+          </p>
+          <p>
+            A <span className="font-medium text-foreground">rule</span> reads one
+            field and turns it into a 0 to 100 score using thresholds you can see, for
+            example higher net assets scoring better between two limits. Related rules
+            group into a <span className="font-medium text-foreground">criterion</span>,
+            and criteria are weighted inside a{" "}
+            <span className="font-medium text-foreground">scenario</span> for a given
+            deal type, so the same counterparty can score differently for demand versus
+            trading.
+          </p>
+          <p>
+            Run a scenario over the universe and each counterparty gets a{" "}
+            <span className="font-medium text-foreground">fit score</span> (how
+            attractive) and a{" "}
+            <span className="font-medium text-foreground">data-quality score</span>{" "}
+            (how well-evidenced). You work the highest-fit names, open a deep dive to
+            see every score traced back to its source, and record proceed, hold or
+            decline.
+          </p>
+          <p>
+            Who does what: an administrator owns the sources, the data fields and the
+            shared library of rules. You compose and tune scenarios from that library,
+            and you make the call. You never edit a raw source; you decide how the
+            evidence is weighed for your deal.
+          </p>
+        </div>
       </Card>
 
       <Card className="p-4">

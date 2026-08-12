@@ -11,6 +11,7 @@ import {
   counterparties as seedCounterparties,
   counterpartyFieldValue,
   criteriaLibrary as seedLibrary,
+  DATA_FIELDS as seedDataFields,
   dataQuality,
   defaultConfig,
   defaultSourceRegistry,
@@ -31,6 +32,7 @@ import {
   type Contact,
   type ContactSource,
   type Counterparty,
+  type DataField,
   type EffectiveCriterion,
   type LibraryCriterion,
   type Pillar,
@@ -143,6 +145,10 @@ interface StoreValue {
   ) => void;
   deleteLibraryCriterion: (id: string) => void;
   duplicateLibraryCriterion: (id: string) => string | undefined;
+  dataFields: DataField[];
+  addDataField: () => string;
+  updateDataField: (key: string, patch: Partial<Omit<DataField, "key">>) => void;
+  deleteDataField: (key: string) => void;
   addSubCriterion: (critId: string) => void;
   updateSubCriterion: (
     critId: string,
@@ -252,6 +258,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   >({});
   const [sourceRegistry, setSourceRegistry] =
     useState<SourceRegistry>(defaultSourceRegistry);
+  const [dataFieldsList, setDataFieldsList] = useState<DataField[]>(seedDataFields);
   const [counterpartyList, setCounterpartyList] =
     useState<Counterparty[]>(seedCounterparties);
   const [shortlists, setShortlists] = useState<Shortlist[]>([]);
@@ -279,6 +286,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (s.criteriaLibrary) setCriteriaLibraryList(s.criteriaLibrary);
         if (s.scenarioRules) setScenarioRules(s.scenarioRules);
         if (s.sourceRegistry) setSourceRegistry(s.sourceRegistry);
+        if (s.dataFields) setDataFieldsList(s.dataFields);
         setSavedSnap(raw);
       } else {
         setSavedSnap(
@@ -293,6 +301,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             criteriaLibrary: seedLibrary,
             scenarioRules: {},
             sourceRegistry: defaultSourceRegistry,
+            dataFields: seedDataFields,
           }),
         );
       }
@@ -541,6 +550,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
     return newId;
   };
+
+  // --- Data field catalogue (admin-managed; consumed read-only by the Library) ---
+  const addDataField = () => {
+    const key = uid("field");
+    setDataFieldsList((l) => [
+      ...l,
+      { key, label: "New field", unit: "", source: "(to be wired)", type: "number", description: "" },
+    ]);
+    return key;
+  };
+  const updateDataField = (key: string, patch: Partial<Omit<DataField, "key">>) =>
+    setDataFieldsList((l) => l.map((f) => (f.key === key ? { ...f, ...patch } : f)));
+  const deleteDataField = (key: string) =>
+    setDataFieldsList((l) => l.filter((f) => f.key !== key));
   const addSubCriterion = (critId: string) =>
     setCriteriaLibraryList((l) =>
       l.map((c) =>
@@ -956,6 +979,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     criteriaLibrary: criteriaLibraryList,
     scenarioRules,
     sourceRegistry,
+    dataFields: dataFieldsList,
   });
   const dirty = hydrated && currentSnap !== savedSnap;
   const saveAll = () => {
@@ -1007,6 +1031,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     updateLibraryCriterion,
     deleteLibraryCriterion,
     duplicateLibraryCriterion,
+    dataFields: dataFieldsList,
+    addDataField,
+    updateDataField,
+    deleteDataField,
     addSubCriterion,
     updateSubCriterion,
     deleteSubCriterion,

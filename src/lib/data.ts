@@ -1047,11 +1047,15 @@ export interface LibraryCriterion {
   subCriteria: SubCriterion[];
 }
 
+export type DataFieldType = "number" | "boolean";
+
 export interface DataField {
   key: string;
   label: string;
   unit?: string;
   source: string;
+  type?: DataFieldType; // defaults to number; boolean for present-or-not rules
+  description?: string;
 }
 
 // The catalogue of fields a sub-criterion can reference (mocked sources).

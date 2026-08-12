@@ -24,15 +24,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DATA_FIELDS,
-  dataField,
   subScore,
   counterpartyFieldValue,
+  type DataField,
   type Direction,
   type LibraryCriterion,
   type RuleType,
   type SubCriterion,
 } from "@/lib/data";
+
+type GetField = (k: string) => DataField | undefined;
 import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/library")({
@@ -109,8 +110,8 @@ function themeOf(c: LibraryCriterion): string {
   return "Other";
 }
 
-function ruleSummary(s: SubCriterion): string {
-  const fld = dataField(s.dataField);
+function ruleSummary(s: SubCriterion, getField: GetField): string {
+  const fld = getField(s.dataField);
   if (!fld) return "No data field - not scoring";
   const unit = fld.unit ? ` ${fld.unit}` : "";
   const k = ruleKeyOf(s);
@@ -124,11 +125,15 @@ function ruleSummary(s: SubCriterion): string {
 }
 
 type Status = { needsSetup: boolean; inactive: boolean; blocking: boolean; dup: boolean };
-function critStatus(c: LibraryCriterion, usage: Record<string, number>): Status {
-  const valid = c.subCriteria.filter((s) => dataField(s.dataField));
+function critStatus(
+  c: LibraryCriterion,
+  usage: Record<string, number>,
+  getField: GetField,
+): Status {
+  const valid = c.subCriteria.filter((s) => getField(s.dataField));
   const needsSetup = c.subCriteria.length === 0 || valid.length === 0;
   const inactive = !needsSetup && !valid.some((s) => s.enabled);
-  const dup = c.subCriteria.some((s) => (usage[s.dataField] ?? 0) > 1 && !!dataField(s.dataField));
+  const dup = c.subCriteria.some((s) => (usage[s.dataField] ?? 0) > 1 && !!getField(s.dataField));
   return { needsSetup, inactive, blocking: c.blocking, dup };
 }
 
@@ -137,12 +142,18 @@ function Library() {
     criteriaLibrary,
     scenarios,
     rankedCounterparties,
+    dataFields,
     addLibraryCriterion,
     duplicateLibraryCriterion,
     deleteLibraryCriterion,
     dirty,
     saveAll,
   } = useStore();
+
+  const getField = useMemo<GetField>(() => {
+    const m = new Map(dataFields.map((f) => [f.key, f]));
+    return (k: string) => m.get(k);
+  }, [dataFields]);
 
   const [selectedId, setSelectedId] = useState<string | null>(
     criteriaLibrary[0]?.id ?? null,
@@ -161,14 +172,14 @@ function Library() {
   const coverage = useMemo(() => {
     const total = rankedCounterparties.length || 1;
     const m: Record<string, number> = {};
-    for (const f of DATA_FIELDS) {
+    for (const f of dataFields) {
       let n = 0;
       for (const cp of rankedCounterparties)
         if (counterpartyFieldValue(cp.id, f.key) !== undefined) n++;
       m[f.key] = Math.round((n / total) * 100);
     }
     return m;
-  }, [rankedCounterparties]);
+  }, [rankedCounterparties, dataFields]);
 
   const totalWeight =
     criteriaLibrary.reduce((s, c) => s + (c.weight ?? 3), 0) || 1;
@@ -179,24 +190,24 @@ function Library() {
       needs = 0,
       dup = 0;
     for (const c of criteriaLibrary) {
-      const st = critStatus(c, usage);
+      const st = critStatus(c, usage, getField);
       if (st.blocking) blocking++;
       if (st.needsSetup) needs++;
       if (st.dup) dup++;
     }
     return { blocking, needs, dup };
-  }, [criteriaLibrary, usage]);
+  }, [criteriaLibrary, usage, getField]);
 
   const matches = (c: LibraryCriterion) => {
     if (query.trim()) {
       const q = query.toLowerCase();
       const inName = c.label.toLowerCase().includes(q);
       const inField = c.subCriteria.some((s) =>
-        (dataField(s.dataField)?.label ?? s.dataField).toLowerCase().includes(q),
+        (getField(s.dataField)?.label ?? s.dataField).toLowerCase().includes(q),
       );
       if (!inName && !inField) return false;
     }
-    const st = critStatus(c, usage);
+    const st = critStatus(c, usage, getField);
     if (filter === "blocking") return st.blocking;
     if (filter === "needs-setup") return st.needsSetup;
     if (filter === "duplicate") return st.dup;
@@ -312,7 +323,8 @@ function Library() {
                       key={c.id}
                       crit={c}
                       pct={critPct(c)}
-                      status={critStatus(c, usage)}
+                      status={critStatus(c, usage, getField)}
+                      getField={getField}
                       active={c.id === selectedId}
                       onClick={() => setSelectedId(c.id)}
                     />
@@ -339,6 +351,8 @@ function Library() {
               usage={usage}
               coverage={coverage}
               scenarios={scenarios}
+              getField={getField}
+              dataFields={dataFields}
               onDelete={() => onDelete(selected.id)}
               onDuplicate={() => onDuplicate(selected.id)}
             />
@@ -449,12 +463,14 @@ function CriterionRow({
   crit,
   pct,
   status,
+  getField,
   active,
   onClick,
 }: {
   crit: LibraryCriterion;
   pct: number;
   status: Status;
+  getField: GetField;
   active: boolean;
   onClick: () => void;
 }) {
@@ -462,7 +478,7 @@ function CriterionRow({
     crit.subCriteria.length === 0
       ? "No rule yet"
       : crit.subCriteria.length === 1
-        ? ruleSummary(crit.subCriteria[0])
+        ? ruleSummary(crit.subCriteria[0], getField)
         : `${crit.subCriteria.length} rules`;
   return (
     <button
@@ -496,6 +512,8 @@ function CriterionEditor({
   usage,
   coverage,
   scenarios,
+  getField,
+  dataFields,
   onDelete,
   onDuplicate,
 }: {
@@ -505,11 +523,13 @@ function CriterionEditor({
   usage: Record<string, number>;
   coverage: Record<string, number>;
   scenarios: { id: string; title: string }[];
+  getField: GetField;
+  dataFields: DataField[];
   onDelete: () => void;
   onDuplicate: () => void;
 }) {
   const { updateLibraryCriterion, addSubCriterion } = useStore();
-  const st = critStatus(crit, usage);
+  const st = critStatus(crit, usage, getField);
   const usedIn =
     crit.scenarios && crit.scenarios.length
       ? scenarios.filter((s) => crit.scenarios!.includes(s.id))
@@ -611,6 +631,8 @@ function CriterionEditor({
               single={single}
               usage={usage}
               coverage={coverage}
+              getField={getField}
+              dataFields={dataFields}
               subWeightTotal={crit.subCriteria.reduce((s, x) => s + x.weight, 0) || 1}
             />
           ))}
@@ -626,6 +648,8 @@ function SubRuleEditor({
   single,
   usage,
   coverage,
+  getField,
+  dataFields,
   subWeightTotal,
 }: {
   crit: LibraryCriterion;
@@ -633,11 +657,13 @@ function SubRuleEditor({
   single: boolean;
   usage: Record<string, number>;
   coverage: Record<string, number>;
+  getField: GetField;
+  dataFields: DataField[];
   subWeightTotal: number;
 }) {
   const { updateSubCriterion, deleteSubCriterion } = useStore();
   const [open, setOpen] = useState(single);
-  const fld = dataField(sub.dataField);
+  const fld = getField(sub.dataField);
   const fmax = fieldMax(sub.dataField);
   const dup = (usage[sub.dataField] ?? 0) > 1 && !!fld;
   const ruleKey = ruleKeyOf(sub);
@@ -678,7 +704,7 @@ function SubRuleEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {DATA_FIELDS.map((f) => (
+              {dataFields.map((f) => (
                 <SelectItem key={f.key} value={f.key}>
                   {f.label}
                 </SelectItem>
@@ -820,7 +846,7 @@ function SubRuleEditor({
           className="h-8 max-w-xs border-transparent bg-transparent px-1 text-sm font-medium shadow-none hover:bg-muted/40 focus-visible:bg-card"
         />
         <span className="ml-auto truncate text-[11px] text-muted-foreground">
-          {ruleSummary(sub)}
+          {ruleSummary(sub, getField)}
         </span>
         <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
           {subPct}%

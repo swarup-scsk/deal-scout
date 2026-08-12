@@ -15,11 +15,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  DATA_FIELDS,
   DEFAULT_TIER_WEIGHTS,
   EU_REGIONS,
   REGIONS,
   sourceKeyForField,
+  type DataFieldType,
   type Source,
 } from "@/lib/data";
 import { useStore } from "@/lib/store";
@@ -67,6 +67,10 @@ function Sources() {
     deleteSource,
     setFieldSource,
     setTierWeight,
+    dataFields,
+    addDataField,
+    updateDataField,
+    deleteDataField,
     dirty,
     saveAll,
   } = useStore();
@@ -259,6 +263,75 @@ function Sources() {
         </div>
       </Card>
 
+      {/* Data field catalogue (admin-managed; Library consumes read-only) --*/}
+      <Card className="overflow-hidden p-0">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <Database className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-semibold text-foreground">Data fields</span>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {dataFields.length} fields · selectable in the Library
+          </span>
+        </div>
+        <div className="divide-y divide-border">
+          {dataFields.map((f) => (
+            <div key={f.key} className="px-4 py-2.5">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.5fr_0.8fr_0.9fr_auto] sm:items-center">
+                <Input
+                  value={f.label}
+                  placeholder="Field name"
+                  className={`${inlineInput} text-sm font-medium`}
+                  onChange={(e) => updateDataField(f.key, { label: e.target.value })}
+                />
+                <Input
+                  value={f.unit ?? ""}
+                  placeholder="unit"
+                  className={`${inlineInput} text-xs text-muted-foreground`}
+                  onChange={(e) => updateDataField(f.key, { unit: e.target.value })}
+                />
+                <Select
+                  value={f.type ?? "number"}
+                  onValueChange={(v) =>
+                    updateDataField(f.key, { type: v as DataFieldType })
+                  }
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="number">number</SelectItem>
+                    <SelectItem value="boolean">yes / no</SelectItem>
+                  </SelectContent>
+                </Select>
+                <button
+                  type="button"
+                  onClick={() => deleteDataField(f.key)}
+                  className="justify-self-end text-muted-foreground transition-colors hover:text-destructive"
+                  aria-label="Retire data field"
+                  title="Retire field"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <Input
+                value={f.description ?? ""}
+                placeholder="What this field means (optional)"
+                className={`${inlineInput} mt-1 w-full text-xs text-muted-foreground`}
+                onChange={(e) => updateDataField(f.key, { description: e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-border p-3">
+          <Button variant="outline" size="sm" onClick={() => addDataField()}>
+            <Plus className="mr-1.5 h-4 w-4" /> Add data field
+          </Button>
+          <span className="text-[11px] text-muted-foreground">
+            New fields appear in the Library dropdown. Map each to a source below; values
+            arrive from the feed in production.
+          </span>
+        </div>
+      </Card>
+
       {/* Field-to-source mapping (region-aware) ----------------------------*/}
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
@@ -283,7 +356,7 @@ function Sources() {
           </div>
         </div>
         <div className="divide-y divide-border">
-          {DATA_FIELDS.map((f) => {
+          {dataFields.map((f) => {
             const jur = region === "*" ? undefined : region;
             const resolvedKey = sourceKeyForField(f.key, jur, sourceRegistry);
             const entry = fieldSource[f.key];

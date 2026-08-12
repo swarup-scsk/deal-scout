@@ -74,7 +74,8 @@ Persistence is split into two keys with different save models.
   "commTemplates":         [ …CommTemplate ],
   "criteriaLibrary":       [ …LibraryCriterion ],
   "scenarioRules":         { [scenarioId]: { criteria: { [libraryId]: CritOverride } } },
-  "sourceRegistry":        { sources: [ …Source ], tierWeights: { 1..4: number }, fieldSource: { [fieldKey]: sourceKey | { [region]: sourceKey } } }
+  "sourceRegistry":        { sources: [ …Source ], tierWeights: { 1..4: number }, fieldSource: { [fieldKey]: sourceKey | { [region]: sourceKey } } },
+  "dataFields":            [ …DataField ]   // admin-managed field catalogue (FP-04); seeded from DATA_FIELDS; Library dropdown consumes it read-only
 }
 ```
 
@@ -136,7 +137,7 @@ CompaniesHouseFinancials{ fiscalYear, revenue, revenueGrowth?, adjEbitda?, profi
 // Shown together in the deep-dive "Verified identity, licence and financials" card; GLEIF verified live via api.gleif.org.
 
 // Rules engine (config blob). See REQUIREMENTS_rules-engine.md.
-DataField      { key, label, unit?, source }                       // DATA_FIELDS catalogue (constant, not persisted)
+DataField      { key, label, unit?, source, type?, description? }   // DATA_FIELDS = seed; live catalogue persisted as dataFields (config blob). Store: addDataField/updateDataField/deleteDataField. type = "number" | "boolean"
 RuleType       = "graded-min"|"graded-max"|"gate-min"|"gate-max"|"between"|"boolean"
 SubCriterion   { id, label, dataField, ruleType, thresholds{floor?,ceiling?,t?,x?,y?}, weight, direction, missing, enabled, blocking }
 LibraryCriterion { id, label, description?, blocking, weight?, scenarios?, subCriteria: SubCriterion[] }   // persisted as criteriaLibrary; weight = criterion-level default importance (1-5), used by resolveScenario as ov?.weight ?? c.weight ?? 3; scenarios = ids this criterion applies to (undefined/empty = all)
