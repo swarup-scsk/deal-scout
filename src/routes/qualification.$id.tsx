@@ -251,6 +251,66 @@ function QualificationScreen() {
             </div>
           </Card>
 
+          {verified && (
+            <Card className="space-y-4 p-5">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-foreground">Audit trail</h3>
+                  <p className="text-sm text-muted-foreground">
+                    A traceable record for compliance: source and value, scoring
+                    logic, score, and recommendation for this counterparty on{" "}
+                    {scenarioTitle}. Downloads carry a SHA-256 hash for
+                    integrity.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-2 rounded-lg border border-border bg-muted/20 p-4 text-sm sm:grid-cols-2">
+                <div className="text-muted-foreground">
+                  Live-source verification
+                </div>
+                <div className="text-foreground">
+                  {[
+                    cp.gleif ? "GLEIF LEI" : null,
+                    cp.regulatory ? "Regulator licence" : null,
+                    cp.financials ? "Financials" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "none attached"}
+                </div>
+                <div className="text-muted-foreground">Scored criteria</div>
+                <div className="text-foreground">
+                  {breakdown.criteria.filter((c) => !c.noData).length} scored,{" "}
+                  {breakdown.criteria.filter((c) => c.noData).length} no-data
+                </div>
+                <div className="text-muted-foreground">Result</div>
+                <div className="text-foreground">
+                  Fit {breakdown.fit}
+                  {breakdown.blocked ? " · blocked" : ""} · AI suggests{" "}
+                  {cp.suggestion}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void downloadAuditDossier(auditInput)}
+                >
+                  <FileText className="mr-2 h-4 w-4" /> Dossier (print to PDF)
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => void downloadAuditJson(auditInput)}
+                >
+                  <Download className="mr-2 h-4 w-4" /> JSON record
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Prototype note: this log is generated in the browser, so the hash
+                proves the record has not been altered, but tamper-proof storage
+                and a signed append-only trail come in the production build.
+              </p>
+            </Card>
+          )}
         </div>
 
         {/* RIGHT */}
@@ -400,68 +460,6 @@ function QualificationScreen() {
             ) : null;
           })()}
       </Card>
-
-      {verified && (
-        <Card className="space-y-4 p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-2">
-              <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">
-                  Audit trail
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  A traceable record for compliance: source and value, scoring
-                  logic, score, and recommendation for this counterparty on{" "}
-                  {scenarioTitle}. Downloads carry a SHA-256 hash for integrity.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={() => void downloadAuditDossier(auditInput)}
-              >
-                <FileText className="mr-2 h-4 w-4" /> Dossier (print to PDF)
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => void downloadAuditJson(auditInput)}
-              >
-                <Download className="mr-2 h-4 w-4" /> JSON record
-              </Button>
-            </div>
-          </div>
-          <div className="grid gap-2 rounded-lg border border-border bg-muted/20 p-4 text-sm sm:grid-cols-2">
-            <div className="text-muted-foreground">Live-source verification</div>
-            <div className="text-foreground">
-              {[
-                cp.gleif ? "GLEIF LEI" : null,
-                cp.regulatory ? "Regulator licence" : null,
-                cp.financials ? "Financials" : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "none attached"}
-            </div>
-            <div className="text-muted-foreground">Scored criteria</div>
-            <div className="text-foreground">
-              {breakdown.criteria.filter((c) => !c.noData).length} scored,{" "}
-              {breakdown.criteria.filter((c) => c.noData).length} no-data
-            </div>
-            <div className="text-muted-foreground">Result</div>
-            <div className="text-foreground">
-              Fit {breakdown.fit}
-              {breakdown.blocked ? " · blocked" : ""} · AI suggests{" "}
-              {cp.suggestion}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Prototype note: this log is generated in the browser, so the hash
-            proves the record has not been altered, but tamper-proof storage and
-            a signed append-only trail come in the production build.
-          </p>
-        </Card>
-      )}
 
       <div className="flex flex-wrap justify-between gap-2 border-t border-border pt-4">
         <Button
