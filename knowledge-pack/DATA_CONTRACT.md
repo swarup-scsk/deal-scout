@@ -153,6 +153,29 @@ Templates are content-admin authored (Admin role) and live in the **config blob*
 
 Flow: **Proceed** on a deep dive calls `startCrm(counterpartyId)`, which creates one `Account` (idempotent per counterparty) plus an auto `Contact` parsed from the counterparty's known contact. `enrichAccount` is a **mock** (simulated website + ZoomInfo) that adds a website and enriched contacts; replace its body with a real connector later. `logComm` records drafted messages (nothing is actually sent; LinkedIn stays draft-for-a-human). `setAccountStatus(id, "deal-closed", ref)` records a close from the external deal system and drives the "Deal closed" flag shown in the Counterparties table.
 
+## 3b. Audit records (`src/lib/audit.ts`)
+
+Phase 1 compliance traceability. Pure builder + exports; no persistence of its own yet.
+
+```
+AuditRecord {
+  schema: "see-origination.audit.v1", recordId, generatedAt, generatedBy,
+  counterparty { id, company, country, jurisdiction, legalEntityName, lei },
+  scenario { id, title },
+  liveVerification { gleif?, regulatory?, financials? },   // the live-source integrations
+  ruleset { scope, thresholds, rules, rulesetHash, provenanceConfigHash },
+  scoring { fit, band, blocked, recommendation, recommendationBasis, criteria[ { …, subs[ source, sourceTier, retrieved, rawValue, ruleType, thresholds, direction, missing, weight, subScore, flags ] } ] },
+  decision | null,
+  integrity { algo: "SHA-256", contentHash, note }
+}
+buildAuditRecord(input) -> AuditRecord            // deterministic, from the live breakdown + registry + library
+finalizeRecord(record, input) -> AuditRecord      // async; attaches rulesetHash, provenanceConfigHash, contentHash (Web Crypto)
+downloadAuditJson(input) / downloadAuditDossier(input)   // canonical JSON + printable HTML dossier
+bandAndRecommendation(breakdown, config)          // band (green/amber/red/blocked) + system recommendation + basis
+```
+
+Surfaced on the deep dive as an "Audit trail" card, gated to the live-source counterparties (`cp.regulatory && cp.gleif`). `contentHash` is over the canonical record (stable key order) minus the hash field itself, so the record is verifiable and reproducible. Prototype log is browser-side; append-only signed storage is Phase 2 (see DECISIONS D28).
+
 ## 4. n8n workflow contracts (hub folder JSON)
 
 Designed, exported as JSON in the OneDrive hub; not yet wired into Scout. The seam Scout expects:
