@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  Bell,
   Building2,
   CircleHelp,
   Database,
@@ -8,18 +10,23 @@ import {
   ListChecks,
   LogOut,
   Mail,
+  Minus,
+  Newspaper,
   SlidersHorizontal,
+  TrendingDown,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
+import type { SignalImpact } from "@/lib/data";
 
 type NavItem = {
   to: string;
   label: string;
   icon: typeof Home;
   exact?: boolean;
-  badge?: "shortlists" | "crm";
+  badge?: "shortlists" | "crm" | "signals";
 };
 
 const GROUPS: { label?: string; items: NavItem[] }[] = [
@@ -34,6 +41,12 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
   {
     label: "Engagement",
     items: [{ to: "/crm", label: "CRM", icon: Building2, badge: "crm" }],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { to: "/intelligence", label: "Signals", icon: Newspaper, badge: "signals" },
+    ],
   },
   {
     label: "Configuration",
@@ -51,11 +64,12 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { shortlists, accounts } = useStore();
+  const { shortlists, accounts, unreadSignalCount } = useStore();
   const { user, signOut } = useAuth();
   const counts = {
     shortlists: shortlists.length,
     crm: accounts.filter((a) => a.status !== "deal-closed").length,
+    signals: unreadSignalCount,
   };
 
   return (
@@ -128,8 +142,100 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="min-w-0 flex-1">
+        <div className="sticky top-0 z-20 flex items-center justify-end border-b border-border bg-background/80 px-8 py-2.5 backdrop-blur">
+          <NotificationBell />
+        </div>
         <div className="mx-auto max-w-screen-2xl px-8 py-8">{children}</div>
       </main>
+    </div>
+  );
+}
+
+function SignalDot({ impact }: { impact: SignalImpact }) {
+  if (impact === "up") return <TrendingUp className="h-4 w-4 text-success" />;
+  if (impact === "down")
+    return <TrendingDown className="h-4 w-4 text-warning" />;
+  return <Minus className="h-4 w-4 text-muted-foreground" />;
+}
+
+function NotificationBell() {
+  const {
+    newsSignals,
+    readSignals,
+    unreadSignalCount,
+    markSignalRead,
+    markAllSignalsRead,
+  } = useStore();
+  const [open, setOpen] = useState(false);
+  const alerts = newsSignals
+    .filter((s) => s.notify)
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        className="relative rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        aria-label="Notifications"
+      >
+        <Bell className="h-5 w-5" />
+        {unreadSignalCount > 0 && (
+          <span className="absolute -right-0 -top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-blue px-1 text-[10px] font-semibold text-white">
+            {unreadSignalCount}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-30 mt-1 w-96 overflow-hidden rounded-lg border border-border bg-card shadow-lg">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
+            <span className="text-sm font-semibold text-foreground">Signals</span>
+            <button
+              type="button"
+              onMouseDown={markAllSignalsRead}
+              className="text-xs text-brand-blue hover:underline"
+            >
+              Mark all read
+            </button>
+          </div>
+          <div className="max-h-96 divide-y divide-border overflow-auto">
+            {alerts.map((s) => {
+              const unread = !readSignals.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onMouseDown={() => markSignalRead(s.id)}
+                  className="flex w-full gap-2 px-3 py-2 text-left transition-colors hover:bg-muted/50"
+                >
+                  <span className="mt-0.5 shrink-0">
+                    <SignalDot impact={s.impact} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+                      {unread && (
+                        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-blue" />
+                      )}
+                      {s.headline}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                      {s.source} · {s.date}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <Link
+            to="/intelligence"
+            className="block border-t border-border px-3 py-2 text-center text-xs font-medium text-brand-blue hover:bg-muted/40"
+          >
+            Open intelligence feed
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

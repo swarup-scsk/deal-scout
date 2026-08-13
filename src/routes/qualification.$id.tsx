@@ -18,13 +18,19 @@ import {
   ExternalLink,
   FileText,
   Loader2,
+  Minus,
+  Newspaper,
   ShieldCheck,
   SlidersHorizontal,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
 import {
   dqTone,
   type Counterparty,
+  type NewsSignal,
   type ScoreBreakdown,
+  type SignalImpact,
 } from "@/lib/data";
 import { useStore, type Decision } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
@@ -57,6 +63,7 @@ function QualificationScreen() {
     sourceRegistry,
     selectedScenarioId,
     scenarios,
+    newsSignals,
   } = useStore();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -119,6 +126,9 @@ function QualificationScreen() {
     user: user ?? undefined,
     decision: existing ?? null,
   };
+  const cpSignals = newsSignals.filter((s) => s.counterpartyId === cp.id);
+  const marketSignals = newsSignals.filter((s) => !s.counterpartyId).slice(0, 2);
+  const relevantSignals = [...cpSignals, ...marketSignals];
   const shownEvidence = verified
     ? cp.evidence.filter(
         (e) => !/^(ofgem|gleif|companies house)\b/i.test(e.trim()),
@@ -204,6 +214,8 @@ function QualificationScreen() {
       )}
 
       <VerifiedDataCard cp={cp} />
+
+      {relevantSignals.length > 0 && <SignalStrip signals={relevantSignals} />}
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         {/* LEFT */}
@@ -792,6 +804,48 @@ function VerifiedDataCard({ cp }: { cp: Counterparty }) {
       {snap.note && (
         <p className="text-[11px] text-muted-foreground">{snap.note}</p>
       )}
+    </Card>
+  );
+}
+
+function SigIcon({ impact }: { impact: SignalImpact }) {
+  if (impact === "up") return <TrendingUp className="h-4 w-4 text-success" />;
+  if (impact === "down")
+    return <TrendingDown className="h-4 w-4 text-warning" />;
+  return <Minus className="h-4 w-4 text-muted-foreground" />;
+}
+
+function SignalStrip({ signals }: { signals: NewsSignal[] }) {
+  return (
+    <Card className="p-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Newspaper className="h-4 w-4 text-brand-blue" />
+        <h3 className="text-sm font-semibold text-foreground">Signals</h3>
+        <span className="text-xs text-muted-foreground">
+          news and market context, does not affect the score
+        </span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {signals.map((s) => (
+          <div
+            key={s.id}
+            className="flex gap-2 rounded-lg border border-border p-2.5"
+          >
+            <span className="mt-0.5 shrink-0">
+              <SigIcon impact={s.impact} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium text-foreground">
+                {s.headline}
+              </div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                {s.source} · {s.date}
+                {s.market ? ` · ${s.market}` : ""}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }

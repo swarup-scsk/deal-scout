@@ -90,9 +90,12 @@ When adding a field here, add it in four places together - the `useState`, the h
   "accounts":       [ …Account ],
   "contacts":       [ …Contact ],
   "commLogs":       [ …CommLog ],
-  "notes":          [ …Note ]
+  "notes":          [ …Note ],
+  "readSignals":    [ signalId ]          // read notifications (intelligence bell)
 }
 ```
+
+News & market signals (`src/lib/data.ts`): `NewsSignal { id, headline, summary, source, url?, date, category: news|market|regulatory|financial, market?, counterpartyId?, impact: up|down|neutral, notify?, why? }`; `NEWS_SIGNALS` seed (real dated headline snapshots) is a constant, not persisted. Store exposes `newsSignals`, `readSignals`, `unreadSignalCount`, `markSignalRead`, `markAllSignalsRead`. Surfaced on `/intelligence`, the top-bar bell, and a deep-dive "Signals" strip. Display/context only; a signal never changes a score.
 
 When adding a slice here, add it in three places: the `useState`, the ops hydrate block, and the auto-save effect's dependency array + written object.
 

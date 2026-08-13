@@ -12,6 +12,7 @@ import {
   counterpartyFieldValue,
   criteriaLibrary as seedLibrary,
   DATA_FIELDS as seedDataFields,
+  NEWS_SIGNALS,
   dataQuality,
   defaultConfig,
   defaultSourceRegistry,
@@ -35,6 +36,7 @@ import {
   type DataField,
   type EffectiveCriterion,
   type LibraryCriterion,
+  type NewsSignal,
   type Pillar,
   type RuleThresholds,
   type Scenario,
@@ -149,6 +151,12 @@ interface StoreValue {
   addDataField: () => string;
   updateDataField: (key: string, patch: Partial<Omit<DataField, "key">>) => void;
   deleteDataField: (key: string) => void;
+  // News & market signals (intelligence feed + notification centre).
+  newsSignals: NewsSignal[];
+  readSignals: string[];
+  unreadSignalCount: number;
+  markSignalRead: (id: string) => void;
+  markAllSignalsRead: () => void;
   addSubCriterion: (critId: string) => void;
   updateSubCriterion: (
     critId: string,
@@ -266,6 +274,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [commLogs, setCommLogs] = useState<CommLog[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [readSignals, setReadSignals] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [savedSnap, setSavedSnap] = useState("");
 
@@ -328,6 +337,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (Array.isArray(o.contacts)) setContacts(o.contacts);
         if (Array.isArray(o.commLogs)) setCommLogs(o.commLogs);
         if (Array.isArray(o.notes)) setNotes(o.notes);
+        if (Array.isArray(o.readSignals)) setReadSignals(o.readSignals);
       }
     } catch {
       // ignore malformed storage
@@ -348,12 +358,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           contacts,
           commLogs,
           notes,
+          readSignals,
         }),
       );
     } catch {
       // ignore quota errors
     }
-  }, [hydrated, counterpartyList, shortlists, accounts, contacts, commLogs, notes]);
+  }, [hydrated, counterpartyList, shortlists, accounts, contacts, commLogs, notes, readSignals]);
 
   const rankedCounterparties = useMemo(() => {
     return counterpartyList
@@ -564,6 +575,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setDataFieldsList((l) => l.map((f) => (f.key === key ? { ...f, ...patch } : f)));
   const deleteDataField = (key: string) =>
     setDataFieldsList((l) => l.filter((f) => f.key !== key));
+
+  // --- News & market signals -------------------------------------------------
+  const markSignalRead = (id: string) =>
+    setReadSignals((r) => (r.includes(id) ? r : [...r, id]));
+  const markAllSignalsRead = () =>
+    setReadSignals(NEWS_SIGNALS.filter((s) => s.notify).map((s) => s.id));
+  const unreadSignalCount = NEWS_SIGNALS.filter(
+    (s) => s.notify && !readSignals.includes(s.id),
+  ).length;
   const addSubCriterion = (critId: string) =>
     setCriteriaLibraryList((l) =>
       l.map((c) =>
@@ -1035,6 +1055,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addDataField,
     updateDataField,
     deleteDataField,
+    newsSignals: NEWS_SIGNALS,
+    readSignals,
+    unreadSignalCount,
+    markSignalRead,
+    markAllSignalsRead,
     addSubCriterion,
     updateSubCriterion,
     deleteSubCriterion,

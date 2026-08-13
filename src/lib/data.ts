@@ -1094,6 +1094,134 @@ export function counterpartyFieldValue(cpId: string, key: string): number | unde
 }
 
 // ---------------------------------------------------------------------------
+// News & market signals (intelligence feed). Prototype seed = real, dated
+// headline snapshots. Display / context only: a signal never changes a score
+// (the LLM augments, it does not score). `notify` surfaces it in the bell.
+// ---------------------------------------------------------------------------
+export type SignalImpact = "up" | "down" | "neutral";
+export type SignalCategory = "news" | "market" | "regulatory" | "financial";
+
+export interface NewsSignal {
+  id: string;
+  headline: string;
+  summary: string;
+  source: string;
+  url?: string;
+  date: string; // display date (dated snapshot in the prototype)
+  category: SignalCategory;
+  market?: string; // e.g. "TTF gas", "DACH power"
+  counterpartyId?: string; // linked counterparty, if any
+  impact: SignalImpact;
+  notify?: boolean; // surfaces in the notification centre
+  why?: string; // why it matters to origination
+}
+
+export const NEWS_SIGNALS: NewsSignal[] = [
+  {
+    id: "sig-ttf-winter",
+    headline: "TTF gas surges over 10% on winter supply risk",
+    summary:
+      "European TTF jumped more than 10% as the Ormen Lange outage was extended to February 2027 and EU storage sat about 22% below the five-year average; forecasts hold EUR 55-62/MWh through year-end.",
+    source: "European Gas Hub",
+    url: "https://europeangashub.com/ttf-gas-prices-surge-as-supply-risks-build-ahead-of-winter.html",
+    date: "2026-08-10",
+    category: "market",
+    market: "TTF gas",
+    impact: "up",
+    notify: true,
+    why: "Higher, more volatile gas lifts demand-side hedging and structured-supply appetite across gas-exposed counterparties.",
+  },
+  {
+    id: "sig-de-power",
+    headline: "German baseload eases as renewables hit 55% of generation",
+    summary:
+      "Germany's one-year forward baseload traded around EUR 92.75/MWh in mid-2026, with renewables at a record 55% of generation and more reliance on flexible gas and storage.",
+    source: "EnergyPrices.net",
+    url: "https://energyprices.net/post/germany-electricity-market-2026-prices-fall-6-7-industrial-subsidies-launch-and-renewables-hit-55",
+    date: "2026-05-18",
+    category: "market",
+    market: "DACH power",
+    impact: "down",
+    notify: false,
+    why: "Lower, more volatile power reshapes flexibility and route-to-market needs for DACH utilities and traders.",
+  },
+  {
+    id: "sig-verbund-pumped",
+    headline: "VERBUND to build 300-MW Danube pumped-storage plant",
+    summary:
+      "VERBUND will proceed with a 300-MW / 3.5-GWh pumped-hydro plant on the Danube, with construction starting in winter 2026/27 after clearing legal challenges.",
+    source: "Renewables Now",
+    url: "https://renewablesnow.com/news/verbund-to-proceed-with-300-mw-pumped-storage-project-in-austria-1297584/",
+    date: "2026-08-05",
+    category: "news",
+    counterpartyId: "verbund-e4b-at",
+    impact: "up",
+    notify: true,
+    why: "Storage build strengthens flexibility and balance-sheet commitment; supportive for demand and trading engagement.",
+  },
+  {
+    id: "sig-bkw-wind",
+    headline: "BKW passes 1,000 MW wind and solar target ahead of plan",
+    summary:
+      "BKW exceeded its 2026 target of 1,000 MW of wind and solar early, via acquisitions in Sweden, Italy and France, taking installed renewables above 1,100 MW.",
+    source: "BKW",
+    url: "https://www.bkw.ch/en/about-us/news/media/press-releases/bkw-close-to-1000-megawatt-target",
+    date: "2026-02-15",
+    category: "news",
+    counterpartyId: "bkw-ch",
+    impact: "up",
+    notify: true,
+    why: "Rapid renewables growth increases trading and route-to-market volume; a positive demand and trading signal.",
+  },
+  {
+    id: "sig-yu-h1",
+    headline: "Yu Group H1 2026: revenue up 19%, contract book GBP 1.7bn",
+    summary:
+      "Yu Group reported H1 2026 revenue up 19% to about GBP 405m, meter points up 43% to 153,000, and an extended Shell trading agreement; FY26 revenue guided GBP 850-875m.",
+    source: "Investegate",
+    url: "https://www.investegate.co.uk/announcement/rns/yu-group--yu./trading-update-and-notice-of-results-/9678453",
+    date: "2026-07-15",
+    category: "financial",
+    counterpartyId: "yu-energy-gb",
+    impact: "up",
+    notify: true,
+    why: "Strong growth and a broadening contract book raise supply and structured-flow opportunity.",
+  },
+  {
+    id: "sig-trianel-solar",
+    headline: "Trianel named strategic partner for utility-scale solar in Rhineland-Palatinate",
+    summary:
+      "Trianel was selected to develop multiple utility-scale solar projects in Rhineland-Palatinate, extending its municipal-utility renewables pipeline.",
+    source: "Renewables Now",
+    url: "https://renewablesnow.com/news/trianel-to-co-develop-large-pv-projects-with-german-municipality-1296718/",
+    date: "2026-06-20",
+    category: "news",
+    counterpartyId: "trianel-de",
+    impact: "up",
+    notify: true,
+    why: "A growing generation pipeline increases trading and offtake needs across Trianel's municipal-utility network.",
+  },
+  {
+    id: "sig-trianel-nuveen",
+    headline: "Trianel sells 70.4-MWp Brandenburg solar park to a Nuveen fund",
+    summary:
+      "Trianel Energieprojekte sold a 70.4-MWp solar park in Brandenburg to a Nuveen-managed fund, recycling capital into new development.",
+    source: "Renewables Now",
+    url: "https://renewablesnow.com/news/nuveen-fund-buys-70-4-mwp-german-solar-park-from-trianel-1291047/",
+    date: "2026-03-10",
+    category: "news",
+    counterpartyId: "trianel-de",
+    impact: "neutral",
+    notify: false,
+    why: "Capital recycling; neutral near-term but signals an active development strategy.",
+  },
+];
+
+export function signalsForCounterparty(cpId: string): NewsSignal[] {
+  return NEWS_SIGNALS.filter((s) => s.counterpartyId === cpId);
+}
+
+// ---------------------------------------------------------------------------
 // Data sources, provenance and data-quality (mocked). See DATA_SOURCES.md.
 // Tier 1 = official registers, 2 = market infrastructure, 3 = commercial, 4 = web/LLM.
 // ---------------------------------------------------------------------------
