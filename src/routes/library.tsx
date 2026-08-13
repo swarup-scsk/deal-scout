@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -181,10 +182,6 @@ function Library() {
     return m;
   }, [rankedCounterparties, dataFields]);
 
-  const totalWeight =
-    criteriaLibrary.reduce((s, c) => s + (c.weight ?? 3), 0) || 1;
-  const critPct = (c: LibraryCriterion) => Math.round(((c.weight ?? 3) / totalWeight) * 100);
-
   const counts = useMemo(() => {
     let blocking = 0,
       needs = 0,
@@ -309,9 +306,7 @@ function Library() {
             )}
           </div>
 
-          <WeightBar criteria={criteriaLibrary} total={totalWeight} onPick={setSelectedId} />
-
-          <div className="max-h-[calc(100vh-18rem)] space-y-4 overflow-auto pr-1">
+          <div className="max-h-[calc(100vh-16rem)] space-y-4 overflow-auto pr-1">
             {grouped.map((g) => (
               <div key={g.theme}>
                 <div className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -322,7 +317,6 @@ function Library() {
                     <CriterionRow
                       key={c.id}
                       crit={c}
-                      pct={critPct(c)}
                       status={critStatus(c, usage, getField)}
                       getField={getField}
                       active={c.id === selectedId}
@@ -346,8 +340,6 @@ function Library() {
             <CriterionEditor
               key={selected.id}
               crit={selected}
-              pct={critPct(selected)}
-              total={totalWeight}
               usage={usage}
               coverage={coverage}
               scenarios={scenarios}
@@ -390,49 +382,6 @@ function Chip({
   );
 }
 
-const THEME_COLORS: Record<string, string> = {
-  "Financial strength": "#0091D4",
-  "Market access": "#00A98A",
-  Volume: "#7C83FF",
-  Infrastructure: "#E4A11B",
-  Other: "#98A2B3",
-};
-
-function WeightBar({
-  criteria,
-  total,
-  onPick,
-}: {
-  criteria: LibraryCriterion[];
-  total: number;
-  onPick: (id: string) => void;
-}) {
-  const sorted = [...criteria].sort((a, b) => (b.weight ?? 3) - (a.weight ?? 3));
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between px-1">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          Weight distribution
-        </span>
-      </div>
-      <div className="flex h-2.5 w-full overflow-hidden rounded-full">
-        {sorted.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => onPick(c.id)}
-            title={`${c.label} · ${Math.round(((c.weight ?? 3) / total) * 100)}%`}
-            className="h-full transition-opacity hover:opacity-80"
-            style={{
-              width: `${((c.weight ?? 3) / total) * 100}%`,
-              background: THEME_COLORS[themeOf(c)],
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function StatusBadge({ kind }: { kind: "blocking" | "needs-setup" | "inactive" | "duplicate" | "active" }) {
   const map = {
     blocking: ["Blocking", "bg-destructive/10 text-destructive"],
@@ -461,14 +410,12 @@ function rowBadges(st: Status) {
 
 function CriterionRow({
   crit,
-  pct,
   status,
   getField,
   active,
   onClick,
 }: {
   crit: LibraryCriterion;
-  pct: number;
   status: Status;
   getField: GetField;
   active: boolean;
@@ -491,9 +438,6 @@ function CriterionRow({
     >
       <div className="flex items-center gap-2">
         <span className="truncate text-sm font-medium text-foreground">{crit.label}</span>
-        <span className="ml-auto shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
-          {pct}%
-        </span>
       </div>
       <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{summary}</div>
       <div className="mt-1 flex flex-wrap gap-1">
@@ -507,8 +451,6 @@ function CriterionRow({
 
 function CriterionEditor({
   crit,
-  pct,
-  total,
   usage,
   coverage,
   scenarios,
@@ -518,8 +460,6 @@ function CriterionEditor({
   onDuplicate,
 }: {
   crit: LibraryCriterion;
-  pct: number;
-  total: number;
   usage: Record<string, number>;
   coverage: Record<string, number>;
   scenarios: { id: string; title: string }[];
@@ -572,21 +512,19 @@ function CriterionEditor({
       {/* Importance + blocking, side by side */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-border p-3">
-          <div className="mb-1.5 flex items-center justify-between">
+          <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-medium text-foreground">Importance</span>
-            <span className="text-sm font-semibold tabular-nums text-brand-blue">
-              {pct}% of total
+            <span className="w-4 text-right text-sm font-medium tabular-nums text-foreground">
+              {crit.weight ?? 3}
             </span>
           </div>
-          <Stepper
-            value={crit.weight ?? 3}
+          <Slider
             min={1}
             max={5}
-            onChange={(v) => updateLibraryCriterion(crit.id, { weight: v })}
+            step={1}
+            value={[crit.weight ?? 3]}
+            onValueChange={(v) => updateLibraryCriterion(crit.id, { weight: v[0] })}
           />
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Share of the final score across {total} weight points in the library.
-          </p>
         </div>
 
         <div className="rounded-lg border border-border p-3">
@@ -633,7 +571,6 @@ function CriterionEditor({
               coverage={coverage}
               getField={getField}
               dataFields={dataFields}
-              subWeightTotal={crit.subCriteria.reduce((s, x) => s + x.weight, 0) || 1}
             />
           ))}
         </div>
@@ -650,7 +587,6 @@ function SubRuleEditor({
   coverage,
   getField,
   dataFields,
-  subWeightTotal,
 }: {
   crit: LibraryCriterion;
   sub: SubCriterion;
@@ -659,7 +595,6 @@ function SubRuleEditor({
   coverage: Record<string, number>;
   getField: GetField;
   dataFields: DataField[];
-  subWeightTotal: number;
 }) {
   const { updateSubCriterion, deleteSubCriterion } = useStore();
   const [open, setOpen] = useState(single);
@@ -670,7 +605,6 @@ function SubRuleEditor({
   const graded = ruleKey === "higher" || ruleKey === "lower";
   const gate = ruleKey === "gate-min" || ruleKey === "gate-max";
   const between = ruleKey === "between";
-  const subPct = Math.round((sub.weight / subWeightTotal) * 100);
 
   const patch = (p: Partial<Omit<SubCriterion, "id">>) =>
     updateSubCriterion(crit.id, sub.id, p);
@@ -801,13 +735,17 @@ function SubRuleEditor({
         <div>
           <div className="mb-1 flex items-center justify-between">
             <FieldLabel>Importance in this criterion</FieldLabel>
-            {!single && (
-              <span className="text-xs font-semibold tabular-nums text-brand-blue">
-                {subPct}%
-              </span>
-            )}
+            <span className="w-4 text-right text-sm font-medium tabular-nums text-foreground">
+              {sub.weight}
+            </span>
           </div>
-          <Stepper value={sub.weight} min={1} max={5} onChange={(v) => patch({ weight: v })} />
+          <Slider
+            min={1}
+            max={5}
+            step={1}
+            value={[sub.weight]}
+            onValueChange={(v) => patch({ weight: v[0] })}
+          />
         </div>
         <div>
           <FieldLabel>When data is missing</FieldLabel>
@@ -847,9 +785,6 @@ function SubRuleEditor({
         />
         <span className="ml-auto truncate text-[11px] text-muted-foreground">
           {ruleSummary(sub, getField)}
-        </span>
-        <span className="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">
-          {subPct}%
         </span>
         <button
           onClick={() => deleteSubCriterion(crit.id, sub.id)}
@@ -943,36 +878,6 @@ function NumberField({
         />
         {unit && <span className="shrink-0 text-xs text-muted-foreground">{unit}</span>}
       </div>
-    </div>
-  );
-}
-
-function Stepper({
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: max - min + 1 }, (_, i) => min + i).map((n) => (
-        <button
-          key={n}
-          onClick={() => onChange(n)}
-          className={`h-8 flex-1 rounded-md border text-sm font-medium tabular-nums transition-colors ${
-            n <= value
-              ? "border-brand-blue bg-brand-blue/10 text-brand-blue"
-              : "border-border text-muted-foreground hover:bg-muted/50"
-          }`}
-        >
-          {n}
-        </button>
-      ))}
     </div>
   );
 }
