@@ -29,6 +29,7 @@ import {
   subScore,
   counterpartyFieldValue,
   type DataField,
+  type DataFieldType,
   type Direction,
   type LibraryCriterion,
   type RuleType,
@@ -76,6 +77,7 @@ const RULE_OPTIONS: {
   { key: "gate-min", label: "Pass / fail - at least", ruleType: "gate-min", direction: "higher" },
   { key: "gate-max", label: "Pass / fail - at most", ruleType: "gate-max", direction: "lower" },
   { key: "between", label: "In a range", ruleType: "between", direction: "higher" },
+  { key: "boolean", label: "Present or not", ruleType: "boolean", direction: "higher" },
 ];
 const ruleKeyOf = (s: SubCriterion) =>
   s.ruleType === "graded-min"
@@ -633,8 +635,23 @@ function SubRuleEditor({
   getField: GetField;
   dataFields: DataField[];
 }) {
-  const { updateSubCriterion, deleteSubCriterion } = useStore();
+  const {
+    updateSubCriterion,
+    deleteSubCriterion,
+    addDataField,
+    updateDataField,
+    setFieldSource,
+    sourceRegistry,
+  } = useStore();
   const [open, setOpen] = useState(single);
+  const [adv, setAdv] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [nf, setNf] = useState({
+    label: "",
+    unit: "",
+    type: "number" as DataFieldType,
+    source: "",
+  });
   const fld = getField(sub.dataField);
   const fmax = fieldMax(sub.dataField);
   const dup = (usage[sub.dataField] ?? 0) > 1 && !!fld;
@@ -642,11 +659,51 @@ function SubRuleEditor({
   const graded = ruleKey === "higher" || ruleKey === "lower";
   const gate = ruleKey === "gate-min" || ruleKey === "gate-max";
   const between = ruleKey === "between";
+  // A boolean field only makes sense with the present-or-not rule.
+  const ruleOpts =
+    fld?.type === "boolean"
+      ? RULE_OPTIONS.filter((o) => o.key === "boolean")
+      : RULE_OPTIONS.filter((o) => o.key !== "boolean");
 
   const patch = (p: Partial<Omit<SubCriterion, "id">>) =>
     updateSubCriterion(crit.id, sub.id, p);
   const setTh = (p: Partial<SubCriterion["thresholds"]>) =>
     patch({ thresholds: { ...sub.thresholds, ...p } });
+
+  // Choosing a field pre-fills the rule from the field's type.
+  const applyFieldDefaults = (
+    p: Partial<Omit<SubCriterion, "id">>,
+    key: string,
+    type: DataFieldType | undefined,
+  ) => {
+    if (type === "boolean") {
+      p.ruleType = "boolean";
+      p.direction = "higher";
+    } else if (sub.ruleType === "boolean") {
+      p.ruleType = "graded-min";
+      p.direction = "higher";
+      p.thresholds = { floor: 0, ceiling: fieldMax(key) };
+    }
+    return p;
+  };
+  const onField = (v: string) =>
+    patch(applyFieldDefaults({ dataField: v }, v, getField(v)?.type));
+
+  // Create and source-map a new field inline, then select it.
+  const createField = () => {
+    const key = addDataField();
+    const src = sourceRegistry.sources.find((s) => s.key === nf.source);
+    updateDataField(key, {
+      label: nf.label.trim() || "New field",
+      unit: nf.unit.trim(),
+      type: nf.type,
+      source: src ? src.name : "(to be mapped)",
+    });
+    if (nf.source) setFieldSource(key, nf.source);
+    patch(applyFieldDefaults({ dataField: key }, key, nf.type));
+    setCreating(false);
+    setNf({ label: "", unit: "", type: "number", source: "" });
+  };
 
   const onRule = (key: string) => {
     const o = RULE_OPTIONS.find((x) => x.key === key);
@@ -671,15 +728,24 @@ function SubRuleEditor({
         <div>
           <div className="mb-1 flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-foreground">Data field</span>
-            <Link
-              to="/sources"
-              className="text-[11px] text-brand-blue hover:underline"
-              title="Data fields are created and mapped to sources on the Sources screen"
-            >
-              Manage on Sources
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setCreating((c) => !c)}
+                className="text-[11px] text-brand-blue hover:underline"
+              >
+                + New field
+              </button>
+              <Link
+                to="/sources"
+                className="text-[11px] text-muted-foreground hover:underline"
+                title="Manage the full catalogue and source mappings on the Sources screen"
+              >
+                Manage on Sources
+              </Link>
+            </div>
           </div>
-          <Select value={sub.dataField} onValueChange={(v) => patch({ dataField: v })}>
+          <Select value={sub.dataField} onValueChange={onField}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -704,6 +770,56 @@ function SubRuleEditor({
               <span className="text-warning"> · also used by another criterion</span>
             )}
           </p>
+          {creating && (
+            <div className="mt-2 space-y-2 rounded-lg border border-brand-blue/40 bg-brand-blue/5 p-3">
+              <Input
+                placeholder="Field name, e.g. Traded volume"
+                value={nf.label}
+                onChange={(e) => setNf({ ...nf, label: e.target.value })}
+                className="h-8"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  placeholder="Unit, e.g. TWh"
+                  value={nf.unit}
+                  onChange={(e) => setNf({ ...nf, unit: e.target.value })}
+                  className="h-8"
+                />
+                <Select
+                  value={nf.type}
+                  onValueChange={(v) => setNf({ ...nf, type: v as DataFieldType })}
+                >
+                  <SelectTrigger className="h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="number">number</SelectItem>
+                    <SelectItem value="boolean">yes / no</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Select value={nf.source} onValueChange={(v) => setNf({ ...nf, source: v })}>
+                <SelectTrigger className="h-8">
+                  <SelectValue placeholder="Source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sourceRegistry.sources.map((s) => (
+                    <SelectItem key={s.key} value={s.key}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setCreating(false)}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={createField}>
+                  Add field
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <FieldLabel>Rule</FieldLabel>
@@ -712,7 +828,7 @@ function SubRuleEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {RULE_OPTIONS.map((o) => (
+              {ruleOpts.map((o) => (
                 <SelectItem key={o.key} value={o.key}>
                   {o.label}
                 </SelectItem>
@@ -776,38 +892,56 @@ function SubRuleEditor({
         <Curve sub={sub} />
       </div>
 
-      {/* Importance (within criterion) + missing */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <FieldLabel>Importance in this criterion</FieldLabel>
-            <span className="w-4 text-right text-sm font-medium tabular-nums text-foreground">
-              {sub.weight}
-            </span>
+      {/* Importance stays visible; the rarely-touched knobs go under Advanced */}
+      <div className="sm:max-w-xs">
+        <div className="mb-1 flex items-center justify-between">
+          <FieldLabel>Importance in this criterion</FieldLabel>
+          <span className="w-4 text-right text-sm font-medium tabular-nums text-foreground">
+            {sub.weight}
+          </span>
+        </div>
+        <Slider
+          min={1}
+          max={5}
+          step={1}
+          value={[sub.weight]}
+          onValueChange={(v) => patch({ weight: v[0] })}
+        />
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={() => setAdv((a) => !a)}
+          className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+        >
+          {adv ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+          Advanced
+        </button>
+        {adv && (
+          <div className="mt-2 sm:max-w-xs">
+            <FieldLabel>When data is missing</FieldLabel>
+            <Select
+              value={sub.missing}
+              onValueChange={(v) => patch({ missing: v as SubCriterion["missing"] })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MISSING_OPTS.map((o) => (
+                  <SelectItem key={o.v} value={o.v}>
+                    {o.l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Slider
-            min={1}
-            max={5}
-            step={1}
-            value={[sub.weight]}
-            onValueChange={(v) => patch({ weight: v[0] })}
-          />
-        </div>
-        <div>
-          <FieldLabel>When data is missing</FieldLabel>
-          <Select value={sub.missing} onValueChange={(v) => patch({ missing: v as SubCriterion["missing"] })}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MISSING_OPTS.map((o) => (
-                <SelectItem key={o.v} value={o.v}>
-                  {o.l}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        )}
       </div>
     </div>
   );
