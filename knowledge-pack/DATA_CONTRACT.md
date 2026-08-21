@@ -170,6 +170,7 @@ AuditRecord {
   counterparty { id, company, country, jurisdiction, legalEntityName, lei },
   scenario { id, title },
   liveVerification { gleif?, regulatory?, financials? },   // the live-source integrations
+  dataPipeline { capturedAt, lastRescore?, sources[ { name, target, cadence, lastRun?, status?, nextRun? } ] },   // "data as of": scheduled-refresh timestamps from PIPELINE_JOBS
   ruleset { scope, thresholds, rules, rulesetHash, provenanceConfigHash },
   scoring { fit, band, blocked, recommendation, recommendationBasis, criteria[ { …, subs[ source, sourceTier, retrieved, rawValue, ruleType, thresholds, direction, missing, weight, subScore, flags ] } ] },
   decision | null,
@@ -181,7 +182,7 @@ downloadAuditJson(input) / downloadAuditDossier(input)   // canonical JSON + pri
 bandAndRecommendation(breakdown, config)          // band (green/amber/red/blocked) + system recommendation + basis
 ```
 
-Surfaced on the deep dive as an "Audit trail" card, gated to the live-source counterparties (`cp.regulatory && cp.gleif`). `contentHash` is over the canonical record (stable key order) minus the hash field itself, so the record is verifiable and reproducible. Prototype log is browser-side; append-only signed storage is Phase 2 (see DECISIONS D28).
+Surfaced on the deep dive as an "Audit trail" card, gated to the live-source counterparties (`cp.regulatory && cp.gleif`). `contentHash` is over the canonical record (stable key order) minus the hash field itself, so the record is verifiable and reproducible. The `dataPipeline` block carries the "data as of" freshness: source-refresh timestamps and last-rescore time from `PIPELINE_JOBS`, shown both on the card ("Data refreshed" row) and in the dossier ("Data freshness (pipeline)" section). Prototype log is browser-side; append-only signed storage is Phase 2 (see DECISIONS D28, D34).
 
 ## 4. n8n workflow contracts (hub folder JSON)
 

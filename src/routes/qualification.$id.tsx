@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import {
   dqTone,
+  PIPELINE_JOBS,
   type Counterparty,
   type NewsSignal,
   type ScoreBreakdown,
@@ -123,9 +124,18 @@ function QualificationScreen() {
     effective: resolveScenario(scenarioId),
     config,
     sourceRegistry,
+    pipelineJobs: PIPELINE_JOBS,
     user: user ?? undefined,
     decision: existing ?? null,
   };
+  const lastRefresh = PIPELINE_JOBS.filter(
+    (j) => j.kind === "source-refresh" && j.enabled && j.lastRun,
+  )
+    .map((j) => j.lastRun!.at)
+    .sort()
+    .slice(-1)[0];
+  const lastRescore = PIPELINE_JOBS.find((j) => j.kind === "rescore")?.lastRun
+    ?.at;
   const cpSignals = newsSignals.filter((s) => s.counterpartyId === cp.id);
   const marketSignals = newsSignals.filter((s) => !s.counterpartyId).slice(0, 2);
   const relevantSignals = [...cpSignals, ...marketSignals];
@@ -300,6 +310,11 @@ function QualificationScreen() {
                   Fit {breakdown.fit}
                   {breakdown.blocked ? " · blocked" : ""} · AI suggests{" "}
                   {cp.suggestion}
+                </div>
+                <div className="text-muted-foreground">Data refreshed</div>
+                <div className="text-foreground">
+                  Sources {lastRefresh ?? "not recorded"}
+                  {lastRescore ? ` · scored ${lastRescore}` : ""}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

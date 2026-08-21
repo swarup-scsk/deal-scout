@@ -12,6 +12,7 @@ import type {
   Config,
   Counterparty,
   EffectiveCriterion,
+  PipelineJob,
   ScoreBreakdown,
   SourceRegistry,
 } from "./data";
@@ -26,6 +27,7 @@ export interface AuditInput {
   effective: EffectiveCriterion[];
   config: Config;
   sourceRegistry: SourceRegistry;
+  pipelineJobs?: PipelineJob[];
   user?: { name?: string; username?: string; role?: string };
   decision?: { choice: string; rationale?: string; timestamp?: string } | null;
 }
@@ -50,6 +52,18 @@ export interface AuditRecord {
     gleif?: unknown;
     regulatory?: unknown;
     financials?: unknown;
+  };
+  dataPipeline: {
+    lastRescore?: string;
+    capturedAt: string;
+    sources: Array<{
+      name: string;
+      target: string;
+      cadence: string;
+      lastRun?: string;
+      status?: string;
+      nextRun?: string;
+    }>;
   };
   ruleset: {
     scope: Config["scope"];
@@ -158,6 +172,21 @@ export function buildAuditRecord(input: AuditInput): AuditRecord {
       gleif: cp.gleif,
       regulatory: cp.regulatory,
       financials: cp.financials,
+    },
+    dataPipeline: {
+      capturedAt: new Date().toISOString(),
+      lastRescore: (input.pipelineJobs ?? []).find((j) => j.kind === "rescore")
+        ?.lastRun?.at,
+      sources: (input.pipelineJobs ?? [])
+        .filter((j) => j.kind === "source-refresh")
+        .map((j) => ({
+          name: j.name,
+          target: j.target,
+          cadence: j.cadence,
+          lastRun: j.lastRun?.at,
+          status: j.enabled ? j.lastRun?.status : "paused",
+          nextRun: j.enabled ? j.nextRun : undefined,
+        })),
     },
     ruleset: {
       scope: config.scope,
@@ -339,8 +368,33 @@ function liveVerificationHtml(lv: AuditRecord["liveVerification"]): string {
   return `<div class="kv">${rows.join("")}</div>`;
 }
 
+function dataPipelineHtml(dp: AuditRecord["dataPipeline"]): string {
+  const rows = dp.sources
+    .map(
+      (s) => `<tr>
+        <td>${esc(s.name)}<br><span class="muted">${esc(s.target)}</span></td>
+        <td>${esc(s.cadence)}</td>
+        <td>${s.lastRun ? esc(s.lastRun) : '<span class="muted">never</span>'}${s.status ? ` <span class="muted">(${esc(s.status)})</span>` : ""}</td>
+        <td>${s.nextRun ? esc(s.nextRun) : '<span class="muted">paused</span>'}</td>
+      </tr>`,
+    )
+    .join("");
+  const table = dp.sources.length
+    ? `<table>
+        <thead><tr><th>Source refresh</th><th>Cadence</th><th>Last run</th><th>Next run</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+    : '<p class="muted">No pipeline refresh information captured.</p>';
+  return `${table}
+    <div class="kv" style="margin-top:8px">
+      <div>Scores last recomputed</div><div>${dp.lastRescore ? esc(dp.lastRescore) : '<span class="muted">not recorded</span>'}</div>
+      <div>Snapshot captured</div><div>${esc(dp.capturedAt)}</div>
+    </div>`;
+}
+
 export function renderDossierHtml(r: AuditRecord): string {
   const g = liveVerificationHtml(r.liveVerification);
+  const pipe = dataPipelineHtml(r.dataPipeline);
   const scoreRows = r.scoring.criteria
     .map((c) => {
       const head = `<tr class="crit"><td colspan="7"><strong>${esc(c.label)}</strong> &nbsp; weight ${c.weight} &nbsp; ${c.blocked ? '<span class="bad">blocked</span>' : c.noData ? '<span class="muted">no data</span>' : `score ${c.score}`}</td></tr>`;
@@ -394,6 +448,10 @@ export function renderDossierHtml(r: AuditRecord): string {
 
 <h2>Live-source verification</h2>
 ${g}
+
+<h2>Data freshness (pipeline)</h2>
+<p class="sub">When the underlying source feeds were last refreshed by the scheduled pipeline, and when scores were last recomputed. This is the "data as of" basis for the record below.</p>
+${pipe}
 
 <h2>Scoring logic and evidence</h2>
 <table>
