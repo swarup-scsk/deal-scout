@@ -793,6 +793,24 @@ function Curve({ sub }: { sub: SubCriterion }) {
     pts.push([pad + (i / N) * (W - 2 * pad), H - pad - (sc / 100) * (H - 2 * pad)]);
   }
   const path = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ");
+  // Mark where the rule's thresholds land (score 0 and score 100 for graded,
+  // the pass point for a gate, the range ends for between).
+  const rk = ruleKeyOf(sub);
+  const markVals =
+    rk === "higher" || rk === "lower"
+      ? [sub.thresholds.floor ?? 0, sub.thresholds.ceiling ?? 0]
+      : rk === "gate-min" || rk === "gate-max"
+        ? [sub.thresholds.t ?? 0]
+        : rk === "between"
+          ? [sub.thresholds.x ?? 0, sub.thresholds.y ?? 0]
+          : [];
+  const marks = markVals.map((m) => {
+    const cm = Math.max(0, Math.min(fmax, m));
+    return {
+      mx: pad + (cm / fmax) * (W - 2 * pad),
+      my: H - pad - (subScore(sub.ruleType, m, sub.thresholds) / 100) * (H - 2 * pad),
+    };
+  });
   const hv = hx != null ? ((hx - pad) / (W - 2 * pad)) * fmax : null;
   const hs = hv != null ? subScore(sub.ruleType, hv, sub.thresholds) : null;
   const hxy = hv != null ? pad + (hv / fmax) * (W - 2 * pad) : null;
@@ -813,6 +831,12 @@ function Curve({ sub }: { sub: SubCriterion }) {
         <line x1={pad} y1={H - pad} x2={W - pad} y2={H - pad} stroke="currentColor" className="text-border" />
         <line x1={pad} y1={pad} x2={pad} y2={H - pad} stroke="currentColor" className="text-border" />
         <path d={path} fill="none" stroke="currentColor" strokeWidth={2} className="text-brand-blue" />
+        {marks.map((m, i) => (
+          <g key={i}>
+            <line x1={m.mx} y1={H - pad} x2={m.mx} y2={m.my} stroke="currentColor" className="text-muted-foreground/40" />
+            <circle cx={m.mx} cy={m.my} r={2.5} className="fill-muted-foreground" />
+          </g>
+        ))}
         {hxy != null && hyy != null && (
           <>
             <line x1={hxy} y1={pad} x2={hxy} y2={H - pad} stroke="currentColor" className="text-muted-foreground/50" strokeDasharray="3 3" />
