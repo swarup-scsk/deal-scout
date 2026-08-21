@@ -4,6 +4,7 @@ import {
   Bell,
   BookOpen,
   Building2,
+  ChevronDown,
   CircleHelp,
   Database,
   Home,
@@ -16,11 +17,14 @@ import {
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
+  UserCog,
   Users,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import type { SignalImpact } from "@/lib/data";
+
+type Role = "Originator" | "Admin";
 
 type NavItem = {
   to: string;
@@ -28,9 +32,10 @@ type NavItem = {
   icon: typeof Home;
   exact?: boolean;
   badge?: "shortlists" | "crm" | "signals";
+  roles?: Role[]; // which roles see this item; undefined = all
 };
 
-const GROUPS: { label?: string; items: NavItem[] }[] = [
+const GROUPS: { label?: string; items: NavItem[]; roles?: Role[] }[] = [
   { items: [{ to: "/", label: "Home", icon: Home, exact: true }] },
   {
     label: "Prospecting",
@@ -43,7 +48,7 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
     label: "Engagement",
     items: [
       { to: "/crm", label: "CRM", icon: Building2, badge: "crm" },
-      { to: "/templates", label: "Templates", icon: Mail },
+      { to: "/templates", label: "Templates", icon: Mail, roles: ["Admin"] },
     ],
   },
   {
@@ -54,6 +59,7 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
   },
   {
     label: "Configuration",
+    roles: ["Admin"],
     items: [
       { to: "/sources", label: "Sources", icon: Database },
       { to: "/library", label: "Library", icon: Layers },
@@ -63,7 +69,7 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
   {
     label: "Help",
     items: [
-      { to: "/setup-guide", label: "Admin setup guide", icon: BookOpen },
+      { to: "/setup-guide", label: "Admin setup guide", icon: BookOpen, roles: ["Admin"] },
       { to: "/faq", label: "How it works", icon: CircleHelp },
     ],
   },
@@ -77,6 +83,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     crm: accounts.filter((a) => a.status !== "deal-closed").length,
     signals: unreadSignalCount,
   };
+  const [viewRole, setViewRole] = useState<Role>("Admin");
+  const groups = GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((it) => !it.roles || it.roles.includes(viewRole)),
+  })).filter(
+    (g) => (!g.roles || g.roles.includes(viewRole)) && g.items.length > 0,
+  );
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -97,8 +110,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
+        <div className="border-b border-border px-3 py-2.5">
+          <label className="mb-1 block px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Viewing as
+          </label>
+          <div className="relative">
+            <UserCog className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <select
+              value={viewRole}
+              onChange={(e) => setViewRole(e.target.value as Role)}
+              className="w-full appearance-none rounded-md border border-border bg-card py-1.5 pl-7 pr-7 text-xs font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus:ring-1 focus:ring-brand-blue"
+              aria-label="View the app as a role"
+            >
+              <option value="Admin">Admin</option>
+              <option value="Originator">Originator</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          </div>
+        </div>
+
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-          {GROUPS.map((group, gi) => (
+          {groups.map((group, gi) => (
             <div key={gi} className="space-y-1">
               {group.label && (
                 <div className="px-3 pb-1 text-[11px] font-medium text-muted-foreground">
