@@ -60,6 +60,9 @@ git push
 | `src/routes/scenarios.tsx` | Scenario composition: pick/override library criteria per scenario (Layer 2). |
 | `src/routes/sources.tsx` | Data sources admin (Configuration): source registry, per-tier weights, field-to-source mapping (`sourceRegistry`). |
 | `src/routes/faq.tsx` | Business-user "How it works" FAQ (data flow, source tiers, guardrails). |
+| `src/routes/setup-guide.tsx` | Admin setup guide (Help): plain-language walk from Sources to a scored deep dive. |
+| `src/routes/intelligence.tsx` | News & market-signal feed (FP-12): sourced/dated signals, filters, impacted-scenario deep-links. |
+| `src/routes/pipeline.tsx` | Data pipeline (Platform, Sys Admin): scheduled-run control panel - health, jobs, run now / pause / retry, rescore, run history (mock). |
 | `src/components/AddToShortlist.tsx` | Reusable add-to-shortlist dialog (table + deep dive). |
 | `src/lib/data.ts` | Domain types + mocked seed data (see `knowledge-pack/DATA_CONTRACT.md`). |
 | `src/lib/store.tsx` | Context store + two localStorage blobs (`deal-scout.state.v2` config, `deal-scout.ops.v1` operational). Auth session is a third key (`deal-scout.auth.v1`, owned by `auth.tsx`). |

@@ -1,11 +1,13 @@
 # Decisions and Gotchas
 
-**Last updated:** 2026-08-10
+**Last updated:** 2026-08-21
 
 ## Decisions (lightweight ADR - what, why)
 
 | # | Decision | Why |
 |---|---|---|
+| D34 | **Sys Admin is a third role, and owns the data pipeline (platform-ops).** RBAC is illustrated by a discreet "Viewing as" dropdown in the shell (`AppShell.tsx`), now **Originator / Admin / Sys Admin**. A new **Platform > Data pipeline** nav item and `/pipeline` route are gated to Sys Admin; Sources/Library/Scenarios stay Admin-only. The panel is a clickable mock: health strip, a jobs table (source refreshes, rescore, signal ingestion) with cadence, last/next run, status pills and **Run now / Pause / Retry**, a rescoring panel, and recent run history. Reruns are simulated in local state (no backend). Seeded via `PipelineJob` / `PipelineRun` + `PIPELINE_JOBS` in data.ts. | Owner asked who manages scheduled runs and reruns, and where the control panel lives. Scheduling (WHEN sources refresh, WHEN scores recompute, WHEN signals poll) is deliberately separated from the Sources screen (WHAT feeds a field + trust), and belongs to a platform-ops role, not the business Admin or the Originator. The role matrix already anticipated a Sys Admin; this makes it visible in the prototype. Production wires a real scheduler/orchestrator (n8n or equivalent) with server-side credentials behind the same job shape. |
+| D33 | **Intelligence signals call out impacted scenarios with deep-links.** Each signal on `/intelligence` shows an "Impacts:" row of scenario chips that link to `/prospecting?scenario=<id>` (pre-filtered counterparty list); `NewsSignal.scenarios` tags added to the seed. The "Signals are context for your judgement; they never change a score" line was removed from the feed intro (the guardrail still holds; it is stated in the setup guide and D31). | Owner asked to connect a signal to the scenarios it affects and route the originator straight to the relevant counterparties. Reuses the existing `?scenario=` deep-link on prospecting. Dropping the disclaimer line declutters the feed without weakening the guardrail. |
 | D1 | Build **Scout** as a fresh app rather than prune the Hub. | A large redesign at reduced scope is cleaner as a new build; the Hub stays intact as reference / donor. |
 | D2 | Scope Scout to the **front of the funnel** (Scenario → Prospecting → Qualification); cut the six downstream stages. | Focus the prototype on where digital adds the most value: finding and qualifying counterparties. |
 | D3 | **Universe-first** flow: the Counterparties page shows the full universe **unscored** by default; a scenario is an overlay that scores + ranks (chose "Option 1"). | Matches the trader's mental model - browse everyone, then apply a lens. Decouples the scenario engine from the data. |

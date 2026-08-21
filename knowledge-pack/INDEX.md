@@ -5,7 +5,7 @@ Repo mirror of the SEE / SCEE origination knowledge pack. **The canonical copy l
 **Canonical location:** the OneDrive project hub `…/Projects/SEE Origination/knowledge-pack/`.
 A full mirror lives in the `deal-scout` repo at `deal-scout/knowledge-pack/`. The two are kept identical; update both in the same change (see maintenance rule below).
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-08-21
 
 ## The documents
 

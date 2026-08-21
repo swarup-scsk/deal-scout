@@ -1,6 +1,6 @@
 # Data Contract
 
-**Last updated:** 2026-08-10
+**Last updated:** 2026-08-21
 **Why this doc:** Scout has no backend yet, but these interfaces are shared across the app and must not drift: the **core domain types**, the **two localStorage blobs**, the **shortlist and CRM types**, and the **n8n workflow contracts**. Change either side of these deliberately.
 
 All types live in `src/lib/data.ts`. State and persistence live in `src/lib/store.tsx`.
@@ -95,13 +95,15 @@ When adding a field here, add it in four places together - the `useState`, the h
 }
 ```
 
-News & market signals (`src/lib/data.ts`): `NewsSignal { id, headline, summary, source, url?, date, category: news|market|regulatory|financial, market?, counterpartyId?, impact: up|down|neutral, notify?, why? }`; `NEWS_SIGNALS` seed (real dated headline snapshots) is a constant, not persisted. Store exposes `newsSignals`, `readSignals`, `unreadSignalCount`, `markSignalRead`, `markAllSignalsRead`. Surfaced on `/intelligence`, the top-bar bell, and a deep-dive "Signals" strip. Display/context only; a signal never changes a score.
+News & market signals (`src/lib/data.ts`): `NewsSignal { id, headline, summary, source, url?, date, category: news|market|regulatory|financial, market?, counterpartyId?, impact: up|down|neutral, notify?, why?, scenarios?: string[] }`; `NEWS_SIGNALS` seed (real dated headline snapshots) is a constant, not persisted. Store exposes `newsSignals`, `readSignals`, `unreadSignalCount`, `markSignalRead`, `markAllSignalsRead`. Surfaced on `/intelligence`, the top-bar bell, and a deep-dive "Signals" strip. `scenarios` tags render an "Impacts" row of chips deep-linking to `/prospecting?scenario=<id>` (pre-filtered counterparty list). Display/context only; a signal never changes a score.
+
+Data pipeline / scheduled runs (`src/lib/data.ts`, Sys Admin control panel): `PipelineJob { id, name, kind: source-refresh|rescore|signal-ingest, target, cadence, enabled, lastRun?, nextRun?, history: PipelineRun[] }` and `PipelineRun { at, status: success|running|failed|stale|paused, durationSec, records, note? }`; `PIPELINE_JOBS` seed is a constant, not persisted. Consumed only by `/pipeline` (gated to the Sys Admin role); reruns are simulated in component state. Production replaces the seed and simulated runs with a real scheduler/orchestrator (server-side credentials) behind the same shape.
 
 When adding a slice here, add it in three places: the `useState`, the ops hydrate block, and the auto-save effect's dependency array + written object.
 
 **C. Auth blob - `deal-scout.auth.v1`.** Written by the prototype sign-in gate (`src/lib/auth.tsx`), separate from the store. Holds the signed-in user `{ username, name, role }`. Client-side gate only, not real security (see DECISIONS D25).
 
-**Still in-memory only:** `role` ("Admin" | "User") (set on sign-in, then in-memory), `decisions`, UI open/edit state.
+**Still in-memory only:** `role` ("Admin" | "User") (set on sign-in, then in-memory), `decisions`, UI open/edit state, and the RBAC **"Viewing as"** role (Originator / Admin / Sys Admin) illustrated by the shell dropdown (`AppShell.tsx`); it filters nav only and is not persisted.
 
 ## 3. Shortlist and CRM types (`src/lib/data.ts`)
 
