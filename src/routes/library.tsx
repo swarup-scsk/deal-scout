@@ -443,6 +443,13 @@ function CriterionRow({
   );
 }
 
+const scenChipCls = (active: boolean) =>
+  `rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+    active
+      ? "border-brand-blue bg-brand-blue/10 text-brand-blue"
+      : "border-border bg-card text-muted-foreground hover:bg-muted/60"
+  }`;
+
 function CriterionEditor({
   crit,
   usage,
@@ -535,6 +542,44 @@ function CriterionEditor({
         </div>
       </div>
 
+      <div className="rounded-lg border border-border p-3">
+        <div className="mb-2 text-xs font-medium text-foreground">
+          Applies to scenarios
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => updateLibraryCriterion(crit.id, { scenarios: [] })}
+            className={scenChipCls(!crit.scenarios || crit.scenarios.length === 0)}
+          >
+            All scenarios
+          </button>
+          {scenarios.map((s) => {
+            const on = (crit.scenarios ?? []).includes(s.id);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  const cur = crit.scenarios ?? [];
+                  const next = cur.includes(s.id)
+                    ? cur.filter((x) => x !== s.id)
+                    : [...cur, s.id];
+                  updateLibraryCriterion(crit.id, { scenarios: next });
+                }}
+                className={scenChipCls(on)}
+              >
+                {s.title}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          Leave as All scenarios to apply everywhere, or pick specific ones. This is
+          the same tagging the scenario filter and scoring use.
+        </p>
+      </div>
+
       {/* Sub-criteria */}
       <div>
         <div className="mb-2 flex items-center justify-between">
@@ -624,7 +669,16 @@ function SubRuleEditor({
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <FieldLabel>Data field</FieldLabel>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-foreground">Data field</span>
+            <Link
+              to="/sources"
+              className="text-[11px] text-brand-blue hover:underline"
+              title="Data fields are created and mapped to sources on the Sources screen"
+            >
+              Manage on Sources
+            </Link>
+          </div>
           <Select value={sub.dataField} onValueChange={(v) => patch({ dataField: v })}>
             <SelectTrigger>
               <SelectValue />
