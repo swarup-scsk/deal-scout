@@ -1230,6 +1230,135 @@ export function signalsForCounterparty(cpId: string): NewsSignal[] {
 }
 
 // ---------------------------------------------------------------------------
+// Data pipeline / scheduled runs (Sys Admin control panel). Prototype seed.
+// These jobs are the platform-ops layer: WHEN sources refresh, WHEN scores
+// recompute, WHEN signals are polled. Distinct from the Sources screen, which
+// is the business-config layer (WHAT feeds a field and how much it is trusted).
+// ---------------------------------------------------------------------------
+export type PipelineKind = "source-refresh" | "rescore" | "signal-ingest";
+export type RunStatus = "success" | "running" | "failed" | "stale" | "paused";
+
+export interface PipelineRun {
+  at: string; // ISO-ish timestamp label
+  status: RunStatus;
+  durationSec: number;
+  records: number;
+  note?: string;
+}
+
+export interface PipelineJob {
+  id: string;
+  name: string;
+  kind: PipelineKind;
+  target: string; // what it feeds, in plain words
+  cadence: string; // human label, e.g. "Daily 06:00 UTC"
+  enabled: boolean;
+  lastRun?: PipelineRun;
+  nextRun?: string; // omitted when paused
+  history: PipelineRun[];
+}
+
+export const PIPELINE_JOBS: PipelineJob[] = [
+  {
+    id: "job-gleif",
+    name: "GLEIF LEI register",
+    kind: "source-refresh",
+    target: "Legal identity, registration status",
+    cadence: "Daily 06:00 UTC",
+    enabled: true,
+    lastRun: { at: "2026-08-21 06:00", status: "success", durationSec: 42, records: 1284 },
+    nextRun: "2026-08-22 06:00",
+    history: [
+      { at: "2026-08-21 06:00", status: "success", durationSec: 42, records: 1284 },
+      { at: "2026-08-20 06:00", status: "success", durationSec: 39, records: 1284 },
+      { at: "2026-08-19 06:00", status: "success", durationSec: 51, records: 1281 },
+    ],
+  },
+  {
+    id: "job-financials",
+    name: "Financials feed",
+    kind: "source-refresh",
+    target: "Net assets, net debt, revenue, EBITDA",
+    cadence: "Weekly Mon 05:00 UTC",
+    enabled: true,
+    lastRun: { at: "2026-08-17 05:00", status: "success", durationSec: 118, records: 642 },
+    nextRun: "2026-08-24 05:00",
+    history: [
+      { at: "2026-08-17 05:00", status: "success", durationSec: 118, records: 642 },
+      { at: "2026-08-10 05:00", status: "success", durationSec: 121, records: 640 },
+    ],
+  },
+  {
+    id: "job-market-access",
+    name: "Market-access registries",
+    kind: "source-refresh",
+    target: "Trading membership, transport and storage capacity",
+    cadence: "Daily 05:30 UTC",
+    enabled: true,
+    lastRun: {
+      at: "2026-08-21 05:30",
+      status: "failed",
+      durationSec: 12,
+      records: 0,
+      note: "AT registry endpoint timed out (504). 2 of 3 sources refreshed.",
+    },
+    nextRun: "2026-08-22 05:30",
+    history: [
+      { at: "2026-08-21 05:30", status: "failed", durationSec: 12, records: 0, note: "AT registry 504" },
+      { at: "2026-08-20 05:30", status: "success", durationSec: 63, records: 318 },
+      { at: "2026-08-19 05:30", status: "success", durationSec: 60, records: 318 },
+    ],
+  },
+  {
+    id: "job-curve",
+    name: "TTF and power curve",
+    kind: "source-refresh",
+    target: "Gas and power price references",
+    cadence: "Hourly",
+    enabled: true,
+    lastRun: { at: "2026-08-21 14:00", status: "success", durationSec: 8, records: 96 },
+    nextRun: "2026-08-21 15:00",
+    history: [
+      { at: "2026-08-21 14:00", status: "success", durationSec: 8, records: 96 },
+      { at: "2026-08-21 13:00", status: "success", durationSec: 7, records: 96 },
+    ],
+  },
+  {
+    id: "job-rescore",
+    name: "Full rescore",
+    kind: "rescore",
+    target: "All counterparty fit scores across scenarios",
+    cadence: "After each source run, and on rule publish",
+    enabled: true,
+    lastRun: { at: "2026-08-21 06:03", status: "success", durationSec: 5, records: 1284 },
+    nextRun: "On next source completion",
+    history: [
+      { at: "2026-08-21 06:03", status: "success", durationSec: 5, records: 1284 },
+      { at: "2026-08-20 06:02", status: "success", durationSec: 5, records: 1284 },
+    ],
+  },
+  {
+    id: "job-signals",
+    name: "Signal ingestion",
+    kind: "signal-ingest",
+    target: "News and market signals feed",
+    cadence: "Every 4 hours",
+    enabled: false,
+    lastRun: {
+      at: "2026-08-19 20:00",
+      status: "stale",
+      durationSec: 34,
+      records: 27,
+      note: "Paused by admin on 2026-08-20. Feed not refreshing.",
+    },
+    history: [
+      { at: "2026-08-19 20:00", status: "success", durationSec: 34, records: 27 },
+      { at: "2026-08-19 16:00", status: "success", durationSec: 31, records: 22 },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Data sources, provenance and data-quality (mocked). See DATA_SOURCES.md.
 // Tier 1 = official registers, 2 = market infrastructure, 3 = commercial, 4 = web/LLM.
 // ---------------------------------------------------------------------------

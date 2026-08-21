@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  Activity,
   Bell,
   BookOpen,
   Building2,
@@ -24,7 +25,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import type { SignalImpact } from "@/lib/data";
 
-type Role = "Originator" | "Admin";
+type Role = "Originator" | "Admin" | "Sys Admin";
 
 type NavItem = {
   to: string;
@@ -64,6 +65,13 @@ const GROUPS: { label?: string; items: NavItem[]; roles?: Role[] }[] = [
       { to: "/sources", label: "Sources", icon: Database },
       { to: "/library", label: "Library", icon: Layers },
       { to: "/scenarios", label: "Scenarios", icon: SlidersHorizontal },
+    ],
+  },
+  {
+    label: "Platform",
+    roles: ["Sys Admin"],
+    items: [
+      { to: "/pipeline", label: "Data pipeline", icon: Activity, roles: ["Sys Admin"] },
     ],
   },
   {
@@ -124,6 +132,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <option value="Admin">Admin</option>
               <option value="Originator">Originator</option>
+              <option value="Sys Admin">Sys Admin</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           </div>
