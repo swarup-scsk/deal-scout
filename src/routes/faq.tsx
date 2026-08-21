@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, BookOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Accordion,
@@ -69,10 +69,9 @@ const WORKFLOW = [
 
 // High-level configuration workflow (how the scoring and sources are set up).
 const CONFIG = [
-  { t: "Library", s: "define criteria + logic (admin)" },
-  { t: "Sources", s: "trusted sources + weights (admin)" },
-  { t: "Templates", s: "author outreach (admin)" },
-  { t: "Scenarios", s: "compose + tune per deal" },
+  { t: "Sources", s: "data fields + trusted sources (admin)" },
+  { t: "Library", s: "criteria + scoring rules (admin)" },
+  { t: "Scenarios", s: "compose + weight per deal" },
 ];
 
 // The scoring concept, from raw source to your decision.
@@ -197,6 +196,22 @@ function Faq() {
         </p>
       </div>
 
+      <Link to="/setup-guide" className="block">
+        <Card className="flex items-center gap-3 border-brand-blue/40 bg-brand-blue/5 p-4 transition-colors hover:bg-brand-blue/10">
+          <BookOpen className="h-5 w-5 shrink-0 text-brand-blue" />
+          <div className="flex-1">
+            <div className="text-sm font-medium text-foreground">
+              Setting things up? Follow the Admin setup guide
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              A step-by-step walk from Sources to Library to Scenarios to a scored deep
+              dive.
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-brand-blue" />
+        </Card>
+      </Link>
+
       <Card className="p-4">
         <div className="mb-1 text-sm font-medium text-foreground">
           Your workflow
@@ -212,8 +227,8 @@ function Faq() {
           Configuration workflow
         </div>
         <p className="mb-3 text-[11px] text-muted-foreground">
-          How the scoring criteria, trusted sources and outreach are set up
-          behind the scenes.
+          How an admin sets up scoring, in order. The Admin setup guide walks each
+          step.
         </p>
         <StepStrip steps={CONFIG} />
       </Card>

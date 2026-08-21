@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Bell,
+  BookOpen,
   Building2,
   CircleHelp,
   Database,
@@ -40,7 +41,10 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
   },
   {
     label: "Engagement",
-    items: [{ to: "/crm", label: "CRM", icon: Building2, badge: "crm" }],
+    items: [
+      { to: "/crm", label: "CRM", icon: Building2, badge: "crm" },
+      { to: "/templates", label: "Templates", icon: Mail },
+    ],
   },
   {
     label: "Intelligence",
@@ -51,15 +55,17 @@ const GROUPS: { label?: string; items: NavItem[] }[] = [
   {
     label: "Configuration",
     items: [
+      { to: "/sources", label: "Sources", icon: Database },
       { to: "/library", label: "Library", icon: Layers },
       { to: "/scenarios", label: "Scenarios", icon: SlidersHorizontal },
-      { to: "/sources", label: "Sources", icon: Database },
-      { to: "/templates", label: "Templates", icon: Mail },
     ],
   },
   {
     label: "Help",
-    items: [{ to: "/faq", label: "How it works", icon: CircleHelp }],
+    items: [
+      { to: "/setup-guide", label: "Admin setup guide", icon: BookOpen },
+      { to: "/faq", label: "How it works", icon: CircleHelp },
+    ],
   },
 ];
 
