@@ -1,3 +1,4 @@
+// Criteria Library: master-detail editor for scoring criteria, sub-criteria rules and importance.
 import { useMemo, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -10,7 +11,6 @@ import {
   Plus,
   Search,
   Trash2,
-  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -260,22 +260,6 @@ function Library() {
         </div>
       </div>
 
-      {counts.needs > 0 && (
-        <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
-          <AlertTriangle className="mt-0.5 h-4 w-4 text-warning" />
-          <span className="text-foreground">
-            {counts.needs} criteria need setup (no data field). They are excluded from
-            scoring until a field is chosen.{" "}
-            <button
-              className="font-medium text-brand-blue hover:underline"
-              onClick={() => setFilter("needs-setup")}
-            >
-              Show them
-            </button>
-          </span>
-        </div>
-      )}
-
       <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
         {/* LEFT: persistent index */}
         <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
@@ -382,30 +366,19 @@ function Chip({
   );
 }
 
-function StatusBadge({ kind }: { kind: "blocking" | "needs-setup" | "inactive" | "duplicate" | "active" }) {
-  const map = {
-    blocking: ["Blocking", "bg-destructive/10 text-destructive"],
-    "needs-setup": ["Needs setup", "bg-warning/15 text-warning"],
-    inactive: ["Inactive", "bg-muted text-muted-foreground"],
-    duplicate: ["Duplicate field", "bg-warning/15 text-warning"],
-    active: ["Active", "bg-success/10 text-success"],
-  } as const;
-  const [label, cls] = map[kind];
+// Subtle status: a filled dot for an active (configured, scoring) criterion,
+// a hollow ring for one that still needs setup. No loud text flags.
+function StatusDot({ status }: { status: Status }) {
+  const active = !status.needsSetup && !status.inactive;
   return (
-    <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${cls}`}>
-      {label}
-    </span>
+    <span
+      title={active ? "Active" : "Needs setup"}
+      aria-label={active ? "Active" : "Needs setup"}
+      className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+        active ? "bg-success" : "border border-muted-foreground/50"
+      }`}
+    />
   );
-}
-
-function rowBadges(st: Status) {
-  const out: ("blocking" | "needs-setup" | "inactive" | "duplicate" | "active")[] = [];
-  if (st.blocking) out.push("blocking");
-  if (st.needsSetup) out.push("needs-setup");
-  else if (st.inactive) out.push("inactive");
-  else if (!st.blocking) out.push("active");
-  if (st.dup) out.push("duplicate");
-  return out;
 }
 
 function CriterionRow({
@@ -437,14 +410,10 @@ function CriterionRow({
       }`}
     >
       <div className="flex items-center gap-2">
+        <StatusDot status={status} />
         <span className="truncate text-sm font-medium text-foreground">{crit.label}</span>
       </div>
       <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{summary}</div>
-      <div className="mt-1 flex flex-wrap gap-1">
-        {rowBadges(status).map((k) => (
-          <StatusBadge key={k} kind={k} />
-        ))}
-      </div>
     </button>
   );
 }
@@ -487,9 +456,7 @@ function CriterionEditor({
             className="h-auto border-transparent bg-transparent px-0 text-lg font-semibold shadow-none hover:bg-muted/40 focus-visible:bg-card focus-visible:px-2"
           />
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            {rowBadges(st).map((k) => (
-              <StatusBadge key={k} kind={k} />
-            ))}
+            <StatusDot status={st} />
             <Link
               to="/scenarios"
               className="inline-flex items-center gap-1 text-xs text-brand-blue hover:underline"
