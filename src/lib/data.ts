@@ -1114,11 +1114,13 @@ export interface NewsSignal {
   impact: SignalImpact;
   notify?: boolean; // surfaces in the notification centre
   why?: string; // why it matters to origination
+  scenarios?: string[]; // scenario ids this signal is relevant to
 }
 
 export const NEWS_SIGNALS: NewsSignal[] = [
   {
     id: "sig-ttf-winter",
+    scenarios: ["demand-market-access", "gas-storage", "transport-capacity"],
     headline: "TTF gas surges over 10% on winter supply risk",
     summary:
       "European TTF jumped more than 10% as the Ormen Lange outage was extended to February 2027 and EU storage sat about 22% below the five-year average; forecasts hold EUR 55-62/MWh through year-end.",
@@ -1133,6 +1135,7 @@ export const NEWS_SIGNALS: NewsSignal[] = [
   },
   {
     id: "sig-de-power",
+    scenarios: ["trading-market-access", "demand-market-access"],
     headline: "German baseload eases as renewables hit 55% of generation",
     summary:
       "Germany's one-year forward baseload traded around EUR 92.75/MWh in mid-2026, with renewables at a record 55% of generation and more reliance on flexible gas and storage.",
@@ -1147,6 +1150,7 @@ export const NEWS_SIGNALS: NewsSignal[] = [
   },
   {
     id: "sig-verbund-pumped",
+    scenarios: ["demand-market-access", "trading-market-access"],
     headline: "VERBUND to build 300-MW Danube pumped-storage plant",
     summary:
       "VERBUND will proceed with a 300-MW / 3.5-GWh pumped-hydro plant on the Danube, with construction starting in winter 2026/27 after clearing legal challenges.",
@@ -1161,6 +1165,7 @@ export const NEWS_SIGNALS: NewsSignal[] = [
   },
   {
     id: "sig-bkw-wind",
+    scenarios: ["structured-ppa", "trading-market-access"],
     headline: "BKW passes 1,000 MW wind and solar target ahead of plan",
     summary:
       "BKW exceeded its 2026 target of 1,000 MW of wind and solar early, via acquisitions in Sweden, Italy and France, taking installed renewables above 1,100 MW.",
@@ -1175,6 +1180,7 @@ export const NEWS_SIGNALS: NewsSignal[] = [
   },
   {
     id: "sig-yu-h1",
+    scenarios: ["demand-market-access", "working-capital"],
     headline: "Yu Group H1 2026: revenue up 19%, contract book GBP 1.7bn",
     summary:
       "Yu Group reported H1 2026 revenue up 19% to about GBP 405m, meter points up 43% to 153,000, and an extended Shell trading agreement; FY26 revenue guided GBP 850-875m.",
@@ -1189,6 +1195,7 @@ export const NEWS_SIGNALS: NewsSignal[] = [
   },
   {
     id: "sig-trianel-solar",
+    scenarios: ["structured-ppa", "trading-market-access"],
     headline: "Trianel named strategic partner for utility-scale solar in Rhineland-Palatinate",
     summary:
       "Trianel was selected to develop multiple utility-scale solar projects in Rhineland-Palatinate, extending its municipal-utility renewables pipeline.",
@@ -1203,6 +1210,7 @@ export const NEWS_SIGNALS: NewsSignal[] = [
   },
   {
     id: "sig-trianel-nuveen",
+    scenarios: ["trading-market-access"],
     headline: "Trianel sells 70.4-MWp Brandenburg solar park to a Nuveen fund",
     summary:
       "Trianel Energieprojekte sold a 70.4-MWp solar park in Brandenburg to a Nuveen-managed fund, recycling capital into new development.",

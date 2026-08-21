@@ -40,7 +40,7 @@ const CATS: { v: string; l: string }[] = [
 ];
 
 function Intelligence() {
-  const { newsSignals, rankedCounterparties, readSignals, markAllSignalsRead } =
+  const { newsSignals, rankedCounterparties, scenarios, readSignals, markAllSignalsRead } =
     useStore();
   const [cat, setCat] = useState("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -49,6 +49,10 @@ function Intelligence() {
     const m = new Map(rankedCounterparties.map((c) => [c.id, c.company]));
     return (id?: string) => (id ? m.get(id) : undefined);
   }, [rankedCounterparties]);
+  const scenById = useMemo(
+    () => Object.fromEntries(scenarios.map((s) => [s.id, s.title])),
+    [scenarios],
+  );
 
   const items = newsSignals
     .filter((s) => (cat === "all" ? true : s.category === cat))
@@ -65,8 +69,7 @@ function Intelligence() {
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
             News and market signals relevant to your counterparties and markets.
-            Each is sourced and dated. Signals are context for your judgement; they
-            never change a score.
+            Each is sourced and dated.
           </p>
         </div>
         <button
@@ -106,7 +109,12 @@ function Intelligence() {
 
       <div className="space-y-3">
         {items.map((s) => (
-          <SignalCard key={s.id} s={s} cpName={nameOf(s.counterpartyId)} />
+          <SignalCard
+            key={s.id}
+            s={s}
+            cpName={nameOf(s.counterpartyId)}
+            scenById={scenById}
+          />
         ))}
         {items.length === 0 && (
           <Card className="p-8 text-center text-sm text-muted-foreground">
@@ -118,8 +126,17 @@ function Intelligence() {
   );
 }
 
-function SignalCard({ s, cpName }: { s: NewsSignal; cpName?: string }) {
+function SignalCard({
+  s,
+  cpName,
+  scenById,
+}: {
+  s: NewsSignal;
+  cpName?: string;
+  scenById: Record<string, string>;
+}) {
   const tag = cpName ?? s.market;
+  const impacted = (s.scenarios ?? []).filter((id) => scenById[id]);
   return (
     <Card className="p-4">
       <div className="flex gap-3">
@@ -141,6 +158,23 @@ function SignalCard({ s, cpName }: { s: NewsSignal; cpName?: string }) {
               <span className="font-medium">Why it matters: </span>
               {s.why}
             </p>
+          )}
+          {impacted.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Impacts:
+              </span>
+              {impacted.map((id) => (
+                <Link
+                  key={id}
+                  to="/prospecting"
+                  search={{ scenario: id }}
+                  className="rounded-full border border-brand-blue/30 bg-brand-blue/10 px-2 py-0.5 text-[11px] font-medium text-brand-blue transition-colors hover:bg-brand-blue/20"
+                >
+                  {scenById[id]}
+                </Link>
+              ))}
+            </div>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
             <span>
