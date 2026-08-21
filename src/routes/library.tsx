@@ -413,7 +413,9 @@ function CriterionRow({
         <StatusDot status={status} />
         <span className="truncate text-sm font-medium text-foreground">{crit.label}</span>
       </div>
-      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{summary}</div>
+      {!status.needsSetup && (
+        <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{summary}</div>
+      )}
     </button>
   );
 }
@@ -767,7 +769,18 @@ function SubRuleEditor({
 }
 
 function Curve({ sub }: { sub: SubCriterion }) {
-  const fmax = fieldMax(sub.dataField);
+  const base = fieldMax(sub.dataField);
+  const thr = [
+    sub.thresholds.floor,
+    sub.thresholds.ceiling,
+    sub.thresholds.t,
+    sub.thresholds.x,
+    sub.thresholds.y,
+  ].filter((v): v is number => typeof v === "number");
+  const thrMax = thr.length ? Math.max(...thr) : base;
+  // Axis spans the thresholds, with headroom, so a ceiling beyond the field's
+  // default range still shows the full 0 to 100 curve and its plateau.
+  const fmax = Math.max(base, thrMax * 1.1) || 1;
   const W = 320;
   const H = 72;
   const pad = 6;
