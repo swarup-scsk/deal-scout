@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
+  Filter,
   MoreHorizontal,
   Plus,
   Search,
@@ -161,6 +162,7 @@ function Library() {
   );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "blocking" | "needs-setup" | "duplicate">("all");
+  const [scenarioFilter, setScenarioFilter] = useState<string>("all");
 
   // Field usage -> duplicate detection; coverage -> share of the universe with a value.
   const usage = useMemo(() => {
@@ -203,6 +205,12 @@ function Library() {
         (getField(s.dataField)?.label ?? s.dataField).toLowerCase().includes(q),
       );
       if (!inName && !inField) return false;
+    }
+    if (scenarioFilter !== "all") {
+      // A criterion applies to a scenario if it is tagged for it, or untagged (applies to all).
+      const applies =
+        !c.scenarios || c.scenarios.length === 0 || c.scenarios.includes(scenarioFilter);
+      if (!applies) return false;
     }
     const st = critStatus(c, usage, getField);
     if (filter === "blocking") return st.blocking;
@@ -272,6 +280,21 @@ function Library() {
               className="pl-8"
             />
           </div>
+
+          <Select value={scenarioFilter} onValueChange={setScenarioFilter}>
+            <SelectTrigger className="h-9">
+              <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All scenarios</SelectItem>
+              {scenarios.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <div className="flex flex-wrap gap-1.5">
             <Chip active={filter === "all"} onClick={() => setFilter("all")}>
